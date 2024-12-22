@@ -2,7 +2,6 @@
   "version": 2,
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "cd client && npm install",
   "framework": "vite",
   "rewrites": [
     {
@@ -15,20 +14,25 @@
       "source": "/(.*)",
       "headers": [
         {
-          "key": "X-Frame-Options",
-          "value": "DENY"
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         },
         {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
         },
         {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        },
+          "key": "Access-Control-Allow-Headers",
+          "value": "*"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
         {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co wss://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com wss://clientstream.launchdarkly.com; frame-src 'self'; media-src 'self'; object-src 'none'; worker-src 'self' blob:;"
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     }

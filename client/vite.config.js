@@ -5,6 +5,7 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -21,28 +22,25 @@ export default defineConfig({
     port: 3000,
     host: true,
     strictPort: false,
-    open: true,
-    cors: true,
-    hmr: {
-      overlay: true
-    }
+    open: true
+  },
+  preview: {
+    port: 3000,
+    host: true
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
+    emptyOutDir: true,
     sourcemap: true,
-    minify: false, // Désactivé pour déboguer
-    cssCodeSplit: false,
+    minify: 'esbuild',
+    target: 'esnext',
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      },
       output: {
-        format: 'es',
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]'
+        manualChunks: undefined
       }
     }
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@headlessui/react', '@heroicons/react']
   }
 })
