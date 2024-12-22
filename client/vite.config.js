@@ -27,7 +27,21 @@ export default defineConfig({
       overlay: true
     }
   },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@headlessui/react', '@heroicons/react'],
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@headlessui/react', '@heroicons/react']
+        }
+      }
+    }
   },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@headlessui/react', '@heroicons/react']
+  }
 })
