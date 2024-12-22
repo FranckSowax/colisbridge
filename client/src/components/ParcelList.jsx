@@ -112,94 +112,96 @@ export default function ParcelList({ parcels = [], showCustomerInfo = true, onSt
 
         <div className="mt-8 space-y-4">
           {filteredData.map((parcel) => (
-            <div key={parcel.id} className="bg-white rounded-lg shadow p-4 space-y-3">
-              {/* Status Badge */}
-              <div className="flex justify-between items-start">
-                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[parcel.status]}`}>
-                  {statusLabels[parcel.status]}
-                </span>
-                
-                <Menu as="div" className="relative">
-                  <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
-                    <EllipsisVerticalIcon className="h-5 w-5" />
-                  </Menu.Button>
-                  <Menu.Items className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
-                    <div className="py-1">
-                      {Object.entries(statusLabels).map(([status, label]) => (
-                        <Menu.Item key={status}>
-                          {({ active }) => (
-                            <button
-                              onClick={() => handleStatusChange(parcel, status)}
-                              className={`${
-                                active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                              } block px-4 py-2 text-sm w-full text-left`}
-                              disabled={parcel.status === status}
-                            >
-                              {label}
-                            </button>
-                          )}
-                        </Menu.Item>
-                      ))}
-                    </div>
-                  </Menu.Items>
-                </Menu>
-              </div>
+            <div key={parcel.id} className="bg-white rounded-lg shadow p-4">
+              <div className="flex flex-col space-y-3">
+                {/* Status Badge */}
+                <div className="flex justify-between items-start">
+                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[parcel.status]}`}>
+                    {statusLabels[parcel.status]}
+                  </span>
+                  
+                  <Menu as="div" className="relative">
+                    <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
+                      <EllipsisVerticalIcon className="h-5 w-5" />
+                    </Menu.Button>
+                    <Menu.Items className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                      <div className="py-1">
+                        {Object.entries(statusLabels).map(([status, label]) => (
+                          <Menu.Item key={status}>
+                            {({ active }) => (
+                              <button
+                                onClick={() => handleStatusChange(parcel, status)}
+                                className={`${
+                                  active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                                } block px-4 py-2 text-sm w-full text-left`}
+                                disabled={parcel.status === status}
+                              >
+                                {label}
+                              </button>
+                            )}
+                          </Menu.Item>
+                        ))}
+                      </div>
+                    </Menu.Items>
+                  </Menu>
+                </div>
 
-              {/* Tracking Number */}
-              <div className="text-lg font-medium text-gray-900">
-                {parcel.tracking_number}
-              </div>
+                {/* Tracking Number */}
+                <div className="text-lg font-medium text-gray-900">
+                  {parcel.tracking_number}
+                </div>
 
-              {/* Customer Info */}
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">👤</span>
-                  <span>{parcel.recipients?.name}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">📞</span>
-                  <span>{parcel.recipients?.phone}</span>
-                </div>
-              </div>
-
-              {/* Shipping Details */}
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">🌍</span>
-                  <span>{parcel.country && COUNTRIES[parcel.country] ? (
-                    <span>
-                      {COUNTRIES[parcel.country].flag} {COUNTRIES[parcel.country].name}
-                    </span>
-                  ) : '-'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">🚚</span>
-                  <span>{parcel.shipping_type}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">⚖️</span>
-                  <span>{parcel.weight ? `${parcel.weight} kg` : `${parcel.cbm} m³`}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">📅</span>
-                  <span>Créé le {formatDate(parcel.created_at)}</span>
-                </div>
-                {parcel.shipping_date && (
+                {/* Customer Info */}
+                <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <span className="text-gray-500">✈️</span>
-                    <span>Envoyé le {formatDate(parcel.shipping_date)}</span>
+                    <span className="text-gray-500">👤</span>
+                    <span>{parcel.recipients?.name}</span>
                   </div>
-                )}
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">📞</span>
+                    <span>{parcel.recipients?.phone}</span>
+                  </div>
+                </div>
 
-              {/* Action Button */}
-              <div className="pt-4 flex justify-end border-t border-gray-100">
-                <button
-                  onClick={() => openDrawer(parcel)}
-                  className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                >
-                  Voir les détails
-                </button>
+                {/* Shipping Details */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">🌍</span>
+                    <span>{parcel.country && COUNTRIES[parcel.country] ? (
+                      <span>
+                        {COUNTRIES[parcel.country].flag} {COUNTRIES[parcel.country].name}
+                      </span>
+                    ) : '-'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">🚚</span>
+                    <span>{parcel.shipping_type}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">⚖️</span>
+                    <span>{parcel.weight ? `${parcel.weight} kg` : `${parcel.cbm} m³`}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">📅</span>
+                    <span>Créé le {formatDate(parcel.created_at)}</span>
+                  </div>
+                  {parcel.shipping_date && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-500">✈️</span>
+                      <span>Envoyé le {formatDate(parcel.shipping_date)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Button */}
+                <div className="pt-3 mt-3 flex justify-end border-t border-gray-100">
+                  <button
+                    onClick={() => openDrawer(parcel)}
+                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                  >
+                    Voir les détails
+                  </button>
+                </div>
               </div>
             </div>
           ))}
