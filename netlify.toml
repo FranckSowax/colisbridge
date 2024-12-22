@@ -1,0 +1,14 @@
+[build]
+  command = "cd client && npm install && npm run build"
+  publish = "client/dist"
+  base = "/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+
+[build.environment]
+  NODE_VERSION = "18.17.0"
+  NPM_VERSION = "9.6.7"
