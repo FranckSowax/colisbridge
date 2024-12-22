@@ -33,7 +33,7 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function ParcelCard({ parcel, onStatusChange }) {
+export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
   const formatDate = (date) => {
     if (!date) return '-';
     try {
@@ -70,7 +70,6 @@ export default function ParcelCard({ parcel, onStatusChange }) {
             </Menu.Button>
             <Transition
               as={Fragment}
-              show={true}
               enter="transition ease-out duration-100"
               enterFrom="transform opacity-0 scale-95"
               enterTo="transform opacity-100 scale-100"
@@ -79,6 +78,24 @@ export default function ParcelCard({ parcel, onStatusChange }) {
               leaveTo="transform opacity-0 scale-95"
             >
               <Menu.Items className="absolute right-0 z-10 mt-2 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                {/* Bouton "Voir les détails" uniquement sur mobile */}
+                <div className="lg:hidden">
+                  <Menu.Item>
+                    {({ active }) => (
+                      <button
+                        onClick={() => onViewDetails(parcel)}
+                        className={classNames(
+                          active ? 'bg-gray-50' : '',
+                          'block px-3 py-1 text-sm leading-6 text-gray-900 w-full text-left'
+                        )}
+                      >
+                        Voir les détails
+                      </button>
+                    )}
+                  </Menu.Item>
+                  <div className="border-t border-gray-100 my-1"></div>
+                </div>
+                
                 <Menu.Item>
                   {({ active }) => (
                     <button
@@ -185,6 +202,16 @@ export default function ParcelCard({ parcel, onStatusChange }) {
             <span>Envoyé le {formatDate(parcel.shipping_date)}</span>
           </div>
         )}
+      </div>
+
+      {/* Bouton "Voir les détails" visible uniquement sur desktop */}
+      <div className="hidden lg:block px-4 py-3 border-t border-gray-200">
+        <button
+          onClick={() => onViewDetails(parcel)}
+          className="w-full text-center text-sm font-medium text-indigo-600 hover:text-indigo-500"
+        >
+          Voir les détails
+        </button>
       </div>
     </div>
   );
