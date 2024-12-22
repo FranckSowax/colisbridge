@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@config/supabaseClient';
+import toast from 'react-hot-toast'; // Importation de la bibliothèque de notifications
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
@@ -59,40 +60,30 @@ export default function EmployeeManagement() {
     setLoading(true);
 
     try {
-      // Générer un mot de passe aléatoire
-      const tempPassword = Math.random().toString(36).slice(-8);
-
-      // Créer l'utilisateur dans Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Créer l'utilisateur avec la méthode standard
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newEmployee.email,
-        password: tempPassword,
-        email_confirm: true
+        password: Math.random().toString(36).slice(-8), // Mot de passe temporaire
+        options: {
+          data: {
+            role: 'employee'
+          }
+        }
       });
 
       if (authError) throw authError;
 
-      // Mettre à jour les informations dans la table employees
-      const { error: updateError } = await supabase
+      // Créer l'entrée dans la table employees
+      const { error: employeeError } = await supabase
         .from('employees')
-        .update({
+        .insert({
+          auth_user_id: authData.user.id,
           first_name: newEmployee.firstName,
           last_name: newEmployee.lastName,
           role_id: newEmployee.roleId
-        })
-        .eq('auth_user_id', authData.user.id);
+        });
 
-      if (updateError) throw updateError;
-
-      // Envoyer l'email avec les identifiants
-      const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
-        body: {
-          email: newEmployee.email,
-          password: tempPassword,
-          firstName: newEmployee.firstName
-        }
-      });
-
-      if (emailError) throw emailError;
+      if (employeeError) throw employeeError;
 
       // Rafraîchir la liste
       await fetchEmployeesAndRoles();
@@ -104,9 +95,11 @@ export default function EmployeeManagement() {
         lastName: '',
         roleId: ''
       });
+
+      toast.success('Employé créé avec succès');
     } catch (error) {
       console.error('Error creating employee:', error);
-      alert('Erreur lors de la création de l\'employé');
+      toast.error('Erreur lors de la création de l\'employé: ' + error.message);
     } finally {
       setLoading(false);
     }
