@@ -28,12 +28,12 @@ const statuses = {
   litige: { label: 'Litige', color: 'bg-red-50 text-red-700' },
 }
 
-export default function ParcelDetailsPopup({ parcel, open, setOpen }) {
+export default function ParcelDetailsPopup({ parcel, isOpen, onClose }) {
   if (!parcel) return null
 
   return (
-    <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={setOpen}>
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-10" onClose={() => onClose()}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -62,7 +62,7 @@ export default function ParcelDetailsPopup({ parcel, open, setOpen }) {
                   <button
                     type="button"
                     className="rounded-md bg-white text-gray-400 hover:text-gray-500"
-                    onClick={() => setOpen(false)}
+                    onClick={() => onClose()}
                   >
                     <span className="sr-only">Fermer</span>
                     <XMarkIcon className="h-6 w-6" aria-hidden="true" />

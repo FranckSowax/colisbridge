@@ -1,104 +1,60 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog } from '@headlessui/react';
-import { supabase } from '../config/supabaseClient';
-import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-hot-toast';
-import { XMarkIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, PlusIcon } from '@heroicons/react/24/solid';
+import toast from 'react-hot-toast';
+import { useCreateParcel } from '../hooks/useCreateParcel';
+import { useRecipients } from '../hooks/useRecipients';
+import { useCreateRecipient } from '../hooks/useCreateRecipient';
+import { Combobox } from '@headlessui/react';
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 
-export default function NewParcelForm({ isOpen, onClose, onSuccess }) {
-  const { user } = useAuth();
+const SHIPPING_TYPES = [
+  { id: 'standard', name: 'Standard' },
+  { id: 'express', name: 'Express' },
+  { id: 'maritime', name: 'Maritime' }
+];
+
+const COUNTRIES = [
+  { id: 'france', name: 'France' },
+  { id: 'gabon', name: 'Gabon' },
+  { id: 'togo', name: 'Togo' },
+  { id: 'cote_ivoire', name: "Côte d'Ivoire" },
+  { id: 'dubai', name: 'Dubaï' }
+];
+
+export default function NewParcelForm({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
-    tracking_number: `CB${Date.now()}${Math.floor(Math.random() * 1000)}`,
-    destination_country: 'France',
+    recipient_id: '',
+    country: 'france',
     shipping_type: 'standard',
     weight: '',
     cbm: '',
-    instructions: '',
-    sender_name: '',
-    sender_email: '',
-    sender_phone: '',
-    sender_address: '',
-    recipient_name: '',
-    recipient_email: '',
-    recipient_phone: '',
-    recipient_address: '',
-    length: '',
-    width: '',
-    height: '',
-    value: '',
-    description: '',
+    special_instructions: '',
+    photos: []
   });
-  const [selectedRecipient, setSelectedRecipient] = useState(null);
-  const [newRecipient, setNewRecipient] = useState(null);
-  const [recipients, setRecipients] = useState([]);
+
+  const [query, setQuery] = useState('');
   const [isNewRecipient, setIsNewRecipient] = useState(false);
-  const [photos, setPhotos] = useState([]);
+  const [newRecipient, setNewRecipient] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
+  
   const [photoPreview, setPhotoPreview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const { data: recipients, isLoading: recipientsLoading } = useRecipients();
+  const createParcelMutation = useCreateParcel();
+  const createRecipientMutation = useCreateRecipient();
 
-  const destinationCountries = [
-    { value: 'France', label: 'France' },
-    { value: 'Gabon', label: 'Gabon' },
-    { value: 'Togo', label: 'Togo' },
-    { value: "Côte d'Ivoire", label: "Côte d'Ivoire" },
-    { value: 'Dubai', label: 'Dubaï' },
-  ];
-
-  const shippingTypes = [
-    { value: 'standard', label: 'Standard' },
-    { value: 'express', label: 'Express' },
-    { value: 'maritime', label: 'Maritime' },
-  ];
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchRecipients();
-    }
-  }, [isOpen, user]);
-
-  const fetchRecipients = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('recipients')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('name');
-
-      if (error) throw error;
-
-      setRecipients(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des destinataires:', error);
-      toast.error('Erreur lors du chargement des destinataires');
-    }
-  };
-
-  const handleRecipientChange = (e) => {
-    const recipientId = e.target.value;
-    if (recipientId === 'new') {
-      setIsNewRecipient(true);
-      setSelectedRecipient(null);
-      setNewRecipient({
-        name: '',
-        phone: '',
-        email: '',
+  const filteredRecipients = query === ''
+    ? recipients || []
+    : (recipients || []).filter((recipient) => {
+        return recipient.name.toLowerCase().includes(query.toLowerCase()) ||
+               recipient.phone.includes(query);
       });
-    } else {
-      setIsNewRecipient(false);
-      setSelectedRecipient(recipients.find(r => r.id === recipientId));
-      setNewRecipient(null);
-    }
-  };
-
-  const handleNewRecipientChange = (e) => {
-    const { name, value } = e.target;
-    setNewRecipient(prev => ({
-      ...prev,
-      [name]: name === 'phone' ? value.trim() : value
-    }));
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -108,374 +64,431 @@ export default function NewParcelForm({ isOpen, onClose, onSuccess }) {
     }));
   };
 
+  const handleNewRecipientChange = (e) => {
+    const { name, value } = e.target;
+    setNewRecipient(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const handlePhotoChange = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length + photos.length > 5) {
+    
+    if (files.length + photoPreview.length > 5) {
       toast.error('Vous ne pouvez pas ajouter plus de 5 photos');
       return;
     }
-    
-    // Create preview URLs for new files
-    const newFiles = files.slice(0, 5 - photos.length);
-    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-    
-    setPhotos(prevPhotos => [...prevPhotos, ...newFiles]);
-    setPhotoPreview(prevPreviews => [...prevPreviews, ...newPreviews]);
+
+    const newFiles = files.slice(0, 5 - photoPreview.length);
+    const newPreviews = newFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setPhotoPreview(prev => [...prev, ...newPreviews]);
+    setFormData(prev => ({
+      ...prev,
+      photos: [...(prev.photos || []), ...newFiles]
+    }));
   };
 
   const removePhoto = (index) => {
-    setPhotos(prevPhotos => prevPhotos.filter((_, i) => i !== index));
-    setPhotoPreview(prevPreviews => {
-      // Révoque l'URL de l'aperçu supprimé
-      URL.revokeObjectURL(prevPreviews[index]);
-      return prevPreviews.filter((_, i) => i !== index);
+    setPhotoPreview(prev => {
+      const newPreviews = [...prev];
+      URL.revokeObjectURL(newPreviews[index].preview);
+      newPreviews.splice(index, 1);
+      return newPreviews;
     });
+
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
+
+  const validateForm = () => {
+    if (formData.shipping_type === 'maritime' && !formData.cbm) {
+      toast.error('Le volume CBM est obligatoire pour un envoi maritime');
+      return false;
+    }
+    if (['standard', 'express'].includes(formData.shipping_type) && !formData.weight) {
+      toast.error('Le poids est obligatoire pour un envoi standard ou express');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!validateForm()) return;
 
     try {
-      let recipientId = selectedRecipient?.id;
+      setIsLoading(true);
 
-      // Create new recipient if needed
-      if (isNewRecipient && newRecipient) {
-        const { data: recipientData, error: recipientError } = await supabase
-          .from('recipients')
-          .insert([
-            {
-              ...newRecipient,
-              created_by: user.id
-            }
-          ])
-          .select()
-          .single();
+      let recipientId = formData.recipient_id;
 
-        if (recipientError) {
-          throw new Error(`Erreur lors de la création du destinataire: ${recipientError.message}`);
+      if (isNewRecipient) {
+        const newRecipientData = await createRecipientMutation.mutateAsync({
+          name: newRecipient.name,
+          email: newRecipient.email,
+          phone: newRecipient.phone,
+          address: newRecipient.address
+        });
+        
+        if (!newRecipientData?.id) {
+          throw new Error('Erreur lors de la création du destinataire');
         }
-        recipientId = recipientData.id;
+        
+        recipientId = newRecipientData.id;
+      } else if (!recipientId || recipientId === 'new') {
+        throw new Error('Veuillez sélectionner un destinataire');
       }
 
-      // Upload photos
-      const photoUrls = [];
-      if (photos.length > 0) {
-        for (const photo of photos) {
-          const fileExt = photo.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const filePath = `${user.id}/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('parcel-photos')
-            .upload(filePath, photo, {
-              cacheControl: '3600',
-              upsert: false
-            });
-
-          if (uploadError) {
-            throw new Error(`Erreur lors de l'upload de la photo: ${uploadError.message}`);
-          }
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('parcel-photos')
-            .getPublicUrl(filePath);
-
-          photoUrls.push(publicUrl);
-        }
-      }
-
-      // Prepare parcel data with proper number handling
       const parcelData = {
         ...formData,
-        weight: formData.weight ? Number(formData.weight) : null,
-        cbm: formData.cbm ? Number(formData.cbm) : null,
-        recipient_id: recipientId,
-        photo_urls: photoUrls,
-        created_by: user.id,
-        status: 'recu'
+        recipient_id: recipientId
       };
 
-      // Create parcel
-      const { error: parcelError } = await supabase
-        .from('parcels')
-        .insert([parcelData]);
-
-      if (parcelError) {
-        throw new Error(`Erreur lors de la création du colis: ${parcelError.message}`);
-      }
-
+      await createParcelMutation.mutateAsync(parcelData);
       toast.success('Colis créé avec succès');
-      onSuccess?.();
       onClose();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error(error.message || 'Erreur lors de la création du colis');
+      console.error('Erreur lors de la création:', error);
+      toast.error(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog
-      as="div"
-      className="fixed inset-0 z-10 overflow-y-auto"
-      onClose={onClose}
-      open={isOpen}
-    >
-      <div className="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
-        <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      
+      <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+        <Dialog.Panel className="mx-auto w-full max-w-2xl bg-white rounded-xl shadow-lg sm:w-11/12 md:w-3/4 lg:w-2/3">
+          <div className="p-4 sm:p-6">
+            <Dialog.Title className="text-lg font-medium text-gray-900">
+              Nouveau colis
+            </Dialog.Title>
+            <p className="mt-1 text-sm text-gray-500">
+              Remplissez les informations pour créer un nouveau colis
+            </p>
 
-        <div className="inline-block w-full max-w-2xl transform overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:rounded-lg sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white px-4 py-5 shadow sm:rounded-lg sm:p-6">
-            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Informations sur l'expéditeur */}
-              <div className="sm:col-span-2 lg:col-span-1">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Informations expéditeur</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="sender_name" className="block text-sm font-medium text-gray-700">
-                      Nom complet
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        name="sender_name"
-                        id="sender_name"
-                        value={formData.sender_name}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+              {/* Destinataire */}
+              <div className="space-y-4">
+                <div className="relative">
+                  <Combobox
+                    as="div"
+                    value={formData.recipient_id}
+                    onChange={(value) => {
+                      if (value === 'new') {
+                        setIsNewRecipient(true);
+                      } else {
+                        setIsNewRecipient(false);
+                        setFormData(prev => ({ ...prev, recipient_id: value }));
+                      }
+                    }}
+                  >
+                    <Combobox.Label className="block text-sm font-medium text-gray-700">
+                      Destinataire
+                    </Combobox.Label>
+                    <div className="relative mt-1">
+                      <Combobox.Input
+                        className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                        onChange={(event) => setQuery(event.target.value)}
+                        displayValue={(id) => {
+                          if (id === 'new') return 'Nouveau destinataire';
+                          const recipient = recipients?.find(r => r.id === id);
+                          return recipient ? `${recipient.name} (${recipient.phone})` : '';
+                        }}
                       />
+                      <Combobox.Button className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </Combobox.Button>
+
+                      <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                        <Combobox.Option
+                          value="new"
+                          className={({ active }) =>
+                            `relative cursor-default select-none py-2 pl-3 pr-9 ${
+                              active ? 'bg-indigo-600 text-white' : 'text-gray-900'
+                            }`
+                          }
+                        >
+                          {({ active, selected }) => (
+                            <>
+                              <div className="flex items-center">
+                                <PlusIcon className="h-5 w-5 mr-2" />
+                                <span>Nouveau destinataire</span>
+                              </div>
+                              {selected && (
+                                <span className={`absolute inset-y-0 right-0 flex items-center pr-4 ${
+                                  active ? 'text-white' : 'text-indigo-600'
+                                }`}>
+                                  <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Combobox.Option>
+                        {filteredRecipients.map((recipient) => (
+                          <Combobox.Option
+                            key={recipient.id}
+                            value={recipient.id}
+                            className={({ active }) =>
+                              `relative cursor-default select-none py-2 pl-3 pr-9 ${
+                                active ? 'bg-indigo-600 text-white' : 'text-gray-900'
+                              }`
+                            }
+                          >
+                            {({ active, selected }) => (
+                              <>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{recipient.name}</span>
+                                  <span className="text-sm text-gray-500">{recipient.phone}</span>
+                                </div>
+                                {selected && (
+                                  <span className={`absolute inset-y-0 right-0 flex items-center pr-4 ${
+                                    active ? 'text-white' : 'text-indigo-600'
+                                  }`}>
+                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </Combobox.Option>
+                        ))}
+                      </Combobox.Options>
+                    </div>
+                  </Combobox>
+                </div>
+
+                {isNewRecipient && (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-md">
+                    <h3 className="text-sm font-medium text-gray-900">Nouveau destinataire</h3>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                          Nom complet
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          id="name"
+                          required
+                          value={newRecipient.name}
+                          onChange={handleNewRecipientChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                          Téléphone
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          id="phone"
+                          required
+                          value={newRecipient.phone}
+                          onChange={handleNewRecipientChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          id="email"
+                          value={newRecipient.email}
+                          onChange={handleNewRecipientChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                          Adresse
+                        </label>
+                        <textarea
+                          name="address"
+                          id="address"
+                          required
+                          rows={3}
+                          value={newRecipient.address}
+                          onChange={handleNewRecipientChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
+                )}
+              </div>
 
-                  <div>
-                    <label htmlFor="sender_email" className="block text-sm font-medium text-gray-700">
-                      Email
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="email"
-                        name="sender_email"
-                        id="sender_email"
-                        value={formData.sender_email}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
+              {/* Pays et Type d'envoi */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                    Pays de destination
+                  </label>
+                  <select
+                    id="country"
+                    name="country"
+                    required
+                    value={formData.country}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    {COUNTRIES.map(country => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label htmlFor="sender_phone" className="block text-sm font-medium text-gray-700">
-                      Téléphone
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="tel"
-                        name="sender_phone"
-                        id="sender_phone"
-                        value={formData.sender_phone}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="sender_address" className="block text-sm font-medium text-gray-700">
-                      Adresse
-                    </label>
-                    <div className="mt-1">
-                      <textarea
-                        name="sender_address"
-                        id="sender_address"
-                        rows={3}
-                        value={formData.sender_address}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="shipping_type" className="block text-sm font-medium text-gray-700">
+                    Type d'envoi
+                  </label>
+                  <select
+                    id="shipping_type"
+                    name="shipping_type"
+                    required
+                    value={formData.shipping_type}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    {SHIPPING_TYPES.map(type => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Informations sur le destinataire */}
-              <div className="sm:col-span-2 lg:col-span-1">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Informations destinataire</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="recipient_name" className="block text-sm font-medium text-gray-700">
-                      Nom complet
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        name="recipient_name"
-                        id="recipient_name"
-                        value={formData.recipient_name}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="recipient_email" className="block text-sm font-medium text-gray-700">
-                      Email
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="email"
-                        name="recipient_email"
-                        id="recipient_email"
-                        value={formData.recipient_email}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="recipient_phone" className="block text-sm font-medium text-gray-700">
-                      Téléphone
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="tel"
-                        name="recipient_phone"
-                        id="recipient_phone"
-                        value={formData.recipient_phone}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="recipient_address" className="block text-sm font-medium text-gray-700">
-                      Adresse
-                    </label>
-                    <div className="mt-1">
-                      <textarea
-                        name="recipient_address"
-                        id="recipient_address"
-                        rows={3}
-                        value={formData.recipient_address}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Informations sur le colis */}
-              <div className="sm:col-span-2 lg:col-span-1">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Informations colis</h3>
-                <div className="space-y-4">
+              {/* Poids et CBM */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {['standard', 'express'].includes(formData.shipping_type) && (
                   <div>
                     <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
                       Poids (kg)
                     </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="weight"
-                        id="weight"
-                        value={formData.weight}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      id="weight"
+                      name="weight"
+                      required
+                      value={formData.weight}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
                   </div>
+                )}
 
+                {formData.shipping_type === 'maritime' && (
                   <div>
-                    <label htmlFor="dimensions" className="block text-sm font-medium text-gray-700">
-                      Dimensions (cm)
+                    <label htmlFor="cbm" className="block text-sm font-medium text-gray-700">
+                      Volume CBM (m³)
                     </label>
-                    <div className="mt-1 grid grid-cols-3 gap-2">
-                      <input
-                        type="number"
-                        name="length"
-                        placeholder="Longueur"
-                        value={formData.length}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                      <input
-                        type="number"
-                        name="width"
-                        placeholder="Largeur"
-                        value={formData.width}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                      <input
-                        type="number"
-                        name="height"
-                        placeholder="Hauteur"
-                        value={formData.height}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      id="cbm"
+                      name="cbm"
+                      required
+                      value={formData.cbm}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
                   </div>
-
-                  <div>
-                    <label htmlFor="value" className="block text-sm font-medium text-gray-700">
-                      Valeur déclarée (€)
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="value"
-                        id="value"
-                        value={formData.value}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                      Description
-                    </label>
-                    <div className="mt-1">
-                      <textarea
-                        name="description"
-                        id="description"
-                        rows={3}
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
 
-            <div className="flex justify-end space-x-3 pt-5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {isLoading ? 'Création...' : 'Créer le colis'}
-              </button>
-            </div>
-          </form>
-        </div>
+              {/* Instructions spéciales */}
+              <div>
+                <label htmlFor="special_instructions" className="block text-sm font-medium text-gray-700">
+                  Instructions spéciales
+                </label>
+                <textarea
+                  id="special_instructions"
+                  name="special_instructions"
+                  rows={3}
+                  value={formData.special_instructions}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+              </div>
+
+              {/* Photos */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Photos ({photoPreview.length}/5)
+                </label>
+                <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {photoPreview.map((photo, index) => (
+                    <div key={index} className="relative aspect-square">
+                      <img
+                        src={photo.preview}
+                        alt={`Preview ${index + 1}`}
+                        className="h-full w-full object-cover rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white p-1 text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {photoPreview.length < 5 && (
+                    <div className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
+                      <label className="cursor-pointer w-full h-full flex items-center justify-center">
+                        <PhotoIcon className="h-8 w-8 text-gray-400" />
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="sr-only"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-gray-500">
+                  Vous pouvez ajouter jusqu'à 5 photos.
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                >
+                  {isLoading ? 'Création...' : 'Créer le colis'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Dialog.Panel>
       </div>
     </Dialog>
   );

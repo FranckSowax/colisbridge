@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { toast } from 'react-hot-toast'
 import ParcelTable from '../../components/ParcelTable'
 import SearchBar from '../../components/SearchBar'
+import { Link } from 'react-router-dom'
 
 export default function ParcelsList() {
   const [parcels, setParcels] = useState([])
@@ -25,7 +26,8 @@ export default function ParcelsList() {
             id,
             name,
             phone,
-            email
+            email,
+            address
           )
         `)
         .eq('created_by', user.id)
@@ -35,7 +37,8 @@ export default function ParcelsList() {
 
       const transformedParcels = parcelsData.map(parcel => ({
         ...parcel,
-        recipient_name: parcel.recipient?.name || 'N/A'
+        recipient_name: parcel.recipient?.name || 'N/A',
+        destination_country: parcel.country || 'N/A'
       }))
 
       setParcels(transformedParcels)
@@ -108,9 +111,7 @@ export default function ParcelsList() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Liste des colis
-          </h1>
+          <h1 className="text-2xl font-semibold leading-6 text-blue-900">Liste des colis</h1>
           <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
             Liste de tous les colis avec leurs détails et statuts
           </p>

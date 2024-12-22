@@ -1,5 +1,13 @@
 import { supabase } from '../config/supabaseClient';
 
+const COUNTRIES = {
+  france: 'France',
+  gabon: 'Gabon',
+  togo: 'Togo',
+  cote_ivoire: "Côte d'Ivoire",
+  dubai: 'Dubaï'
+};
+
 export const parcelService = {
   async fetchParcels(userId) {
     const { data, error } = await supabase
@@ -10,7 +18,8 @@ export const parcelService = {
           id,
           name,
           phone,
-          email
+          email,
+          address
         )
       `)
       .eq('created_by', userId)
@@ -20,10 +29,12 @@ export const parcelService = {
       throw new Error(error.message);
     }
 
-    // Transformer les données pour inclure recipient_name
+    // Transformer les données pour inclure les informations du destinataire
     const transformedData = data.map(parcel => ({
       ...parcel,
-      recipient_name: parcel.recipient_name || parcel.recipient?.name || 'N/A'
+      recipient_name: parcel.recipient?.name || 'N/A',
+      destination_country: COUNTRIES[parcel.country] || parcel.country || 'N/A',
+      recipient_address: parcel.recipient?.address || 'N/A'
     }));
 
     return transformedData;
@@ -56,7 +67,7 @@ export const parcelService = {
   },
 
   subscribeToChanges(userId, onUpdate) {
-    return supabase
+    const subscription = supabase
       .channel('parcels_changes')
       .on(
         'postgres_changes',
@@ -69,5 +80,9 @@ export const parcelService = {
         onUpdate
       )
       .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }
 };

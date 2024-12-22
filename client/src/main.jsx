@@ -58,8 +58,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Toaster position="top-right" />
           </AuthProvider>
         </BrowserRouter>
+        <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
     </ErrorBoundary>
   </React.StrictMode>
 );

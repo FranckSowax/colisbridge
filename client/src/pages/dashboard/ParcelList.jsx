@@ -130,9 +130,14 @@ export default function ParcelList() {
                             {parcel.recipient_name}
                           </span>
                           {parcel.recipient && (
-                            <span className="text-xs text-gray-500">
-                              {parcel.recipient.phone}
-                            </span>
+                            <>
+                              <span className="text-xs text-gray-500">
+                                {parcel.recipient.phone}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {parcel.recipient.address}
+                              </span>
+                            </>
                           )}
                         </div>
                       </td>

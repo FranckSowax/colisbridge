@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../config/supabaseClient';
 import ParcelDetailsPopup from './ParcelDetailsPopup';
+import ParcelCard from './ParcelCard';
 
 const statuses = {
   recu: { label: 'Reçu', color: 'bg-yellow-100 text-yellow-800 ring-yellow-600/20' },
@@ -13,15 +14,15 @@ const statuses = {
 };
 
 const destinations = {
-  'France': { name: 'France', flag: '🇫🇷' },
-  'Gabon': { name: 'Gabon', flag: '🇬🇦' },
-  'Togo': { name: 'Togo', flag: '🇹🇬' },
-  'Côte d\'Ivoire': { name: 'Côte d\'Ivoire', flag: '🇨🇮' },
-  'Dubai': { name: 'Dubai', flag: '🇦🇪' },
+  france: { name: 'FRANCE', flag: '🇫🇷' },
+  gabon: { name: 'GABON', flag: '🇬🇦' },
+  togo: { name: 'TOGO', flag: '🇹🇬' },
+  cote_ivoire: { name: "CÔTE D'IVOIRE", flag: '🇨🇮' },
+  dubai: { name: 'DUBAÏ', flag: '🇦🇪' },
 };
 
 function classNames(...classes) {
-  return classes.filter(Boolean).join(' ')
+  return classes.filter(Boolean).join(' ');
 }
 
 export default function ParcelTable({ parcels, onStatusChange }) {
@@ -65,8 +66,22 @@ export default function ParcelTable({ parcels, onStatusChange }) {
     setIsModalOpen(true);
   };
 
-  return (
-    <div className="mt-8 flow-root">
+  // Vue mobile avec des cartes
+  const MobileView = () => (
+    <div className="space-y-4 px-4">
+      {parcels.map((parcel) => (
+        <ParcelCard
+          key={parcel.id}
+          parcel={parcel}
+          onStatusChange={handleStatusChange}
+        />
+      ))}
+    </div>
+  );
+
+  // Vue desktop avec table
+  const DesktopView = () => (
+    <div className="flow-root">
       <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
         <div className="inline-block min-w-full py-2 align-middle">
           <table className="min-w-full divide-y divide-gray-300">
@@ -123,14 +138,12 @@ export default function ParcelTable({ parcels, onStatusChange }) {
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    {parcel.destination_country && destinations[parcel.destination_country] ? (
+                    {parcel.country ? (
                       <div className="flex items-center space-x-1">
-                        <span>{destinations[parcel.destination_country].flag}</span>
-                        <span>{destinations[parcel.destination_country].name}</span>
+                        <span>{destinations[parcel.country]?.flag || '🌍'}</span>
+                        <span>{destinations[parcel.country]?.name || parcel.country.toUpperCase()}</span>
                       </div>
-                    ) : (
-                      '-'
-                    )}
+                    ) : '-'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                     {parcel.shipping_type || 'Standard'}
@@ -175,13 +188,29 @@ export default function ParcelTable({ parcels, onStatusChange }) {
           </table>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Vue mobile (sm et en dessous) */}
+      <div className="sm:hidden">
+        <MobileView />
+      </div>
+
+      {/* Vue desktop (sm et au-dessus) */}
+      <div className="hidden sm:block">
+        <DesktopView />
+      </div>
+
+      {/* Modal de détails */}
       {selectedParcel && (
         <ParcelDetailsPopup
+          isOpen={isModalOpen}
           parcel={selectedParcel}
-          open={isModalOpen}
-          setOpen={setIsModalOpen}
+          onClose={() => setIsModalOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }
