@@ -2,8 +2,9 @@ import React, { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../config/supabaseClient'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { formatDate } from '@utils/dateUtils';
+import { Menu } from '@headlessui/react';
+import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import ParcelDetailsDrawer from './ParcelDetailsDrawer';
 
 const COUNTRIES = {
@@ -16,19 +17,19 @@ const COUNTRIES = {
 
 const statusLabels = {
   recu: 'Reçu',
-  en_transit: 'En transit',
-  livre: 'Livré',
-  annule: 'Annulé',
-}
+  expedie: 'Expédié',
+  receptionne: 'Réceptionné',
+  termine: 'Terminé'
+};
 
 const statusColors = {
-  recu: 'bg-yellow-50 text-yellow-800',
-  en_transit: 'bg-blue-50 text-blue-800',
-  livre: 'bg-green-50 text-green-800',
-  annule: 'bg-red-50 text-red-800',
-}
+  recu: 'bg-yellow-100 text-yellow-800',
+  expedie: 'bg-blue-100 text-blue-800',
+  receptionne: 'bg-green-100 text-green-800',
+  termine: 'bg-gray-100 text-gray-800'
+};
 
-export default function ParcelList() {
+export default function ParcelList({ parcels = [], showCustomerInfo = true, onStatusChange }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedParcel, setSelectedParcel] = useState(null);
@@ -78,6 +79,10 @@ export default function ParcelList() {
     setSelectedParcel(null);
   };
 
+  const handleStatusChange = (parcel, newStatus) => {
+    onStatusChange(parcel, newStatus);
+  };
+
   if (isLoading) return <div>Chargement...</div>;
   if (error) return <div>Erreur: {error.message}</div>;
 
@@ -105,101 +110,99 @@ export default function ParcelList() {
           />
         </div>
 
-        <div className="mt-8 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead>
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
-                      Date de création
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Numéro de suivi
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Destinataire
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Destination
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Type d'envoi
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Poids (kg)
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Date d'envoi
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Statut
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((parcel) => (
-                    <tr key={parcel.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-0">
-                        {format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
-                        {parcel.tracking_number}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{parcel.recipients?.name}</div>
-                          <div className="text-gray-500">{parcel.recipients?.phone}</div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        {parcel.country && COUNTRIES[parcel.country] ? (
-                          <span>
-                            {COUNTRIES[parcel.country].flag} {COUNTRIES[parcel.country].name}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        {parcel.shipping_type}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        {parcel.weight || parcel.cbm ? (
-                          parcel.weight ? `${parcel.weight} kg` : `${parcel.cbm} m³`
-                        ) : '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                        {parcel.shipping_date ? 
-                          format(new Date(parcel.shipping_date), 'dd MMM yyyy', { locale: fr }) 
-                          : '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${statusColors[parcel.status]}`}>
-                          {statusLabels[parcel.status]}
-                        </span>
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
-                        <button
-                          onClick={() => openDrawer(parcel)}
-                          className="text-indigo-600 hover:text-indigo-900 md:hidden"
-                        >
-                          Voir détails
-                        </button>
-                        <Link
-                          to={`/dashboard/parcels/${parcel.id}`}
-                          className="text-indigo-600 hover:text-indigo-900 hidden md:inline"
-                        >
-                          Voir détails
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="mt-8 space-y-4">
+          {filteredData.map((parcel) => (
+            <div key={parcel.id} className="bg-white rounded-lg shadow p-4 space-y-3">
+              {/* Status Badge */}
+              <div className="flex justify-between items-start">
+                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusColors[parcel.status]}`}>
+                  {statusLabels[parcel.status]}
+                </span>
+                
+                <Menu as="div" className="relative">
+                  <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
+                    <EllipsisVerticalIcon className="h-5 w-5" />
+                  </Menu.Button>
+                  <Menu.Items className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                    <div className="py-1">
+                      {Object.entries(statusLabels).map(([status, label]) => (
+                        <Menu.Item key={status}>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleStatusChange(parcel, status)}
+                              className={`${
+                                active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                              } block px-4 py-2 text-sm w-full text-left`}
+                              disabled={parcel.status === status}
+                            >
+                              {label}
+                            </button>
+                          )}
+                        </Menu.Item>
+                      ))}
+                    </div>
+                  </Menu.Items>
+                </Menu>
+              </div>
+
+              {/* Tracking Number */}
+              <div className="text-lg font-medium text-gray-900">
+                {parcel.tracking_number}
+              </div>
+
+              {/* Customer Info */}
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">👤</span>
+                  <span>{parcel.recipients?.name}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">📞</span>
+                  <span>{parcel.recipients?.phone}</span>
+                </div>
+              </div>
+
+              {/* Shipping Details */}
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">🌍</span>
+                  <span>{parcel.country && COUNTRIES[parcel.country] ? (
+                    <span>
+                      {COUNTRIES[parcel.country].flag} {COUNTRIES[parcel.country].name}
+                    </span>
+                  ) : '-'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">🚚</span>
+                  <span>{parcel.shipping_type}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">⚖️</span>
+                  <span>{parcel.weight ? `${parcel.weight} kg` : `${parcel.cbm} m³`}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-500">📅</span>
+                  <span>Créé le {formatDate(parcel.created_at)}</span>
+                </div>
+                {parcel.shipping_date && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">✈️</span>
+                    <span>Envoyé le {formatDate(parcel.shipping_date)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Button */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={() => openDrawer(parcel)}
+                  className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                >
+                  Voir les détails
+                </button>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
