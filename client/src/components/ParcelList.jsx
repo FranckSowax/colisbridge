@@ -193,7 +193,7 @@ export default function ParcelList({ parcels = [], showCustomerInfo = true, onSt
               </div>
 
               {/* Action Button */}
-              <div className="pt-2 flex justify-end">
+              <div className="pt-4 flex justify-end border-t border-gray-100">
                 <button
                   onClick={() => openDrawer(parcel)}
                   className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
