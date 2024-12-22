@@ -5,7 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Twinsk Parcel</title>
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <style>
+      /* Chargement local de la police Inter */
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url('/fonts/inter-var.woff2') format('woff2');
+      }
+      
+      * {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+          'Helvetica Neue', sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

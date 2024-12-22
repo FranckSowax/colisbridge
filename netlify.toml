@@ -9,12 +9,12 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     Content-Security-Policy = """
-      default-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com;
+      default-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com https://rsms.me;
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com;
       style-src 'self' 'unsafe-inline' https://rsms.me;
       img-src 'self' data: blob: https:;
-      font-src 'self' data: https://rsms.me;
-      connect-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co wss://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com wss://clientstream.launchdarkly.com;
+      font-src 'self' https://rsms.me data:;
+      connect-src 'self' https://ayxltzvmpqxtyfvfotxd.supabase.co wss://ayxltzvmpqxtyfvfotxd.supabase.co https://clientstream.launchdarkly.com wss://clientstream.launchdarkly.com https://rsms.me;
       frame-src 'self';
       media-src 'self';
       object-src 'none';
@@ -23,8 +23,9 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Access-Control-Allow-Origin = "*"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "*"
+    Access-Control-Allow-Credentials = "true"
     Cross-Origin-Resource-Policy = "cross-origin"
 
 [[headers]]
@@ -36,6 +37,11 @@
   for = "/*.css"
   [headers.values]
     Content-Type = "text/css"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[redirects]]
   from = "/*"
