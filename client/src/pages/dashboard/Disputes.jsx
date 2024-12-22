@@ -33,7 +33,6 @@ export default function Disputes() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -49,22 +48,14 @@ export default function Disputes() {
         .select(`
           id,
           parcel_id,
-          status,
           description,
-          resolution_notes,
+          status,
           priority,
-          resolution_deadline,
           created_at,
           updated_at,
-          parcel:parcels!parcel_id (
-            id,
+          parcels (
             tracking_number,
-            status,
-            photo_urls,
-            recipient: recipients!recipient_id (
-              name,
-              phone
-            )
+            recipient_name
           )
         `)
         .order('created_at', { ascending: false });
@@ -79,26 +70,22 @@ export default function Disputes() {
   };
 
   const handleSearch = (query) => {
-    setIsSearching(true);
-    setTimeout(() => {
-      setIsSearching(false);
-    }, 500);
-  };
-
-  const handleRowClick = (dispute) => {
-    setSelectedDispute(dispute);
-    setIsModalOpen(true);
+    setSearchQuery(query);
   };
 
   const filteredDisputes = disputes.filter(dispute => {
     const searchLower = searchQuery.toLowerCase();
     return (
-      dispute.parcel?.tracking_number?.toLowerCase().includes(searchLower) ||
-      dispute.parcel?.recipient?.name?.toLowerCase().includes(searchLower) ||
-      dispute.parcel?.recipient?.phone?.includes(searchQuery) ||
+      dispute.parcels?.tracking_number?.toLowerCase().includes(searchLower) ||
+      dispute.parcels?.recipient_name?.toLowerCase().includes(searchLower) ||
       dispute.description?.toLowerCase().includes(searchLower)
     );
   });
+
+  const handleRowClick = (dispute) => {
+    setSelectedDispute(dispute);
+    setIsModalOpen(true);
+  };
 
   const updateDisputeStatus = async (id, newStatus) => {
     try {
@@ -151,13 +138,6 @@ export default function Disputes() {
         />
       </div>
 
-      {/* Indicateur de recherche */}
-      {isSearching && (
-        <div className="flex justify-center items-center h-12">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
-        </div>
-      )}
-
       {/* Vue mobile */}
       <div className="block sm:hidden">
         {loading ? (
@@ -177,13 +157,10 @@ export default function Disputes() {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {dispute.parcel?.tracking_number}
+                        {dispute.parcels?.tracking_number}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {dispute.parcel?.recipient?.name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {dispute.parcel?.recipient?.phone}
+                        {dispute.parcels?.recipient_name}
                       </div>
                     </div>
                     <button
@@ -299,13 +276,10 @@ export default function Disputes() {
                           <tr key={dispute.id}>
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                               <div className="font-medium text-gray-900">
-                                {dispute.parcel?.tracking_number}
+                                {dispute.parcels?.tracking_number}
                               </div>
                               <div className="text-gray-500">
-                                {dispute.parcel?.recipient?.name}
-                              </div>
-                              <div className="text-gray-500">
-                                {dispute.parcel?.recipient?.phone}
+                                {dispute.parcels?.recipient_name}
                               </div>
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">

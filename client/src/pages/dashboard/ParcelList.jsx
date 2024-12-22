@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { EllipsisVerticalIcon } from '@heroicons/react/20/solid';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import SearchBar from '../../components/SearchBar';
 
 const parcelStatuses = {
   recu: { name: 'Reçu', color: 'bg-yellow-100 text-yellow-800' },
@@ -18,7 +19,15 @@ const parcelStatuses = {
 export default function ParcelList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { parcels, isLoading, error, updateStatus, deleteParcel } = useParcels(user?.id);
+  const { 
+    parcels, 
+    isLoading, 
+    error, 
+    updateStatus, 
+    deleteParcel,
+    searchQuery,
+    setSearchQuery
+  } = useParcels(user?.id);
 
   const formatDate = (date) => {
     if (!date) return '-';
@@ -46,6 +55,10 @@ export default function ParcelList() {
         console.error('Erreur lors de la suppression:', error);
       }
     }
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
   };
 
   if (isLoading) {
@@ -83,6 +96,14 @@ export default function ParcelList() {
             Ajouter un colis
           </button>
         </div>
+      </div>
+
+      {/* Barre de recherche */}
+      <div className="mt-4 mb-6">
+        <SearchBar
+          placeholder="Rechercher par numéro de suivi, destinataire, téléphone ou adresse..."
+          onSearch={handleSearch}
+        />
       </div>
 
       <div className="mt-8 flow-root">

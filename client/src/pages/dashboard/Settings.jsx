@@ -124,23 +124,24 @@ export default function Settings() {
       <div className="py-6">
         <div className="max-w-7xl mx-auto">
           <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
-            <div className="flex">
+            <div className="flex flex-col lg:flex-row">
               {/* Sidebar */}
-              <div className="w-64 pr-8">
-                <Tab.List className="flex flex-col space-y-1">
+              <div className="w-full lg:w-64 lg:pr-8 mb-6 lg:mb-0">
+                <Tab.List className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-1 p-2 lg:p-0 bg-gray-50 lg:bg-transparent rounded-lg lg:rounded-none">
                   {tabs.map((tab) => (
                     <Tab
                       key={tab.name}
                       className={({ selected }) =>
                         classNames(
-                          'flex items-center px-3 py-2 text-sm font-medium rounded-md',
+                          'flex items-center px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap',
+                          'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
                           selected
                             ? 'bg-indigo-100 text-indigo-700'
                             : 'text-gray-600 hover:bg-gray-50'
                         )
                       }
                     >
-                      {tab.icon && <tab.icon className="mr-3 h-5 w-5" />}
+                      {tab.icon && <tab.icon className="mr-3 h-5 w-5 flex-shrink-0" />}
                       {tab.name}
                     </Tab>
                   ))}
@@ -208,8 +209,8 @@ export default function Settings() {
                                 value={language}
                                 onChange={(e) => changeLanguage(e.target.value)}
                               >
-                                <option value="fr">{t.settings.language.french}</option>
-                                <option value="zh">{t.settings.language.chinese}</option>
+                                <option value="fr">Français</option>
+                                <option value="en">English</option>
                               </select>
                             </div>
                           </div>
@@ -220,143 +221,73 @@ export default function Settings() {
 
                   {/* Employés */}
                   <Tab.Panel>
-                    <EmployeeManagement />
+                    <div className="bg-white shadow sm:rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
+                        <EmployeeManagement />
+                      </div>
+                    </div>
                   </Tab.Panel>
 
                   {/* Tarification */}
                   <Tab.Panel>
-                    <div className="bg-white shadow sm:rounded-lg">
+                    <div className="bg-white shadow sm:rounded-lg overflow-hidden">
                       <div className="px-4 py-5 sm:p-6">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">
-                          Tarification par pays
-                        </h3>
-                        <div className="mt-6">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead>
-                              <tr>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Pays
-                                </th>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Type
-                                </th>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Prix/kg
-                                </th>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Prix/m³
-                                </th>
-                                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Délai estimé
-                                </th>
-                                <th className="px-6 py-3 bg-gray-50"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {rates.map((rate) => (
-                                <tr key={rate.id}>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {rate.destination_countries.country_name}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {getShippingTypeLabel(rate.shipping_type)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {editingRate?.id === rate.id ? (
-                                      <div className="flex items-center space-x-2">
-                                        <input
-                                          type="number"
-                                          className="w-24 rounded-md border-gray-300"
-                                          value={editingRate.price_per_kg}
-                                          onChange={(e) =>
-                                            setEditingRate({
-                                              ...editingRate,
-                                              price_per_kg: parseFloat(e.target.value)
-                                            })
-                                          }
-                                        />
-                                        <span className="text-gray-500">
-                                          {rate.destination_countries.currency_symbol}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      formatPrice(
-                                        rate.price_per_kg,
-                                        rate.destination_countries.currency_symbol
-                                      )
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {editingRate?.id === rate.id ? (
-                                      <div className="flex items-center space-x-2">
-                                        <input
-                                          type="number"
-                                          className="w-24 rounded-md border-gray-300"
-                                          value={editingRate.price_per_cbm}
-                                          onChange={(e) =>
-                                            setEditingRate({
-                                              ...editingRate,
-                                              price_per_cbm: parseFloat(e.target.value)
-                                            })
-                                          }
-                                        />
-                                        <span className="text-gray-500">
-                                          {rate.destination_countries.currency_symbol}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      formatPrice(
-                                        rate.price_per_cbm,
-                                        rate.destination_countries.currency_symbol
-                                      )
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {editingRate?.id === rate.id ? (
-                                      <input
-                                        type="text"
-                                        className="w-32 rounded-md border-gray-300"
-                                        value={editingRate.estimated_days}
-                                        onChange={(e) =>
-                                          setEditingRate({
-                                            ...editingRate,
-                                            estimated_days: e.target.value
-                                          })
-                                        }
-                                      />
-                                    ) : (
-                                      rate.estimated_days
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    {editingRate?.id === rate.id ? (
-                                      <div className="space-x-2">
-                                        <button
-                                          onClick={() => handleRateUpdate(editingRate)}
-                                          className="text-indigo-600 hover:text-indigo-900"
-                                        >
-                                          Enregistrer
-                                        </button>
-                                        <button
-                                          onClick={() => setEditingRate(null)}
-                                          className="text-gray-600 hover:text-gray-900"
-                                        >
-                                          Annuler
-                                        </button>
-                                      </div>
-                                    ) : (
+                        <div className="space-y-6">
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Pays
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Type
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Prix/kg
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Prix/m³
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Délai (jours)
+                                  </th>
+                                  <th scope="col" className="relative px-6 py-3">
+                                    <span className="sr-only">Actions</span>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {rates.map((rate) => (
+                                  <tr key={rate.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {rate.destination_countries.country_name}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {getShippingTypeLabel(rate.shipping_type)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatPrice(rate.price_per_kg, rate.destination_countries.currency_symbol)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatPrice(rate.price_per_cbm, rate.destination_countries.currency_symbol)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {rate.estimated_days}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                       <button
                                         onClick={() => setEditingRate(rate)}
                                         className="text-indigo-600 hover:text-indigo-900"
                                       >
                                         Modifier
                                       </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -366,10 +297,26 @@ export default function Settings() {
                   <Tab.Panel>
                     <div className="bg-white shadow sm:rounded-lg">
                       <div className="px-4 py-5 sm:p-6">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">
-                          Gestion des pays
-                        </h3>
-                        {/* Add country management here */}
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {countries.map((country) => (
+                              <div
+                                key={country.id}
+                                className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
+                              >
+                                <h3 className="text-lg font-medium text-gray-900">
+                                  {country.country_name}
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Code: {country.country_code}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Devise: {country.currency_symbol}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </Tab.Panel>
@@ -379,16 +326,36 @@ export default function Settings() {
                     <div className="bg-white shadow sm:rounded-lg">
                       <div className="px-4 py-5 sm:p-6">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">
-                          Paramètres du profil
+                          Informations du profil
                         </h3>
-                        {/* Add profile settings here */}
+                        <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                          <div className="sm:col-span-3">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                              Email
+                            </label>
+                            <div className="mt-1">
+                              <input
+                                type="email"
+                                name="email"
+                                id="email"
+                                disabled
+                                value={user?.email || ''}
+                                className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </Tab.Panel>
 
                   {/* Rôles & Permissions */}
                   <Tab.Panel>
-                    <RolesMatrix />
+                    <div className="bg-white shadow sm:rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
+                        <RolesMatrix />
+                      </div>
+                    </div>
                   </Tab.Panel>
                 </Tab.Panels>
               </div>
