@@ -1,0 +1,66 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "edit": "编辑",
+    "delete": "删除",
+    "loading": "加载中...",
+    "success": "成功",
+    "error": "错误",
+    "actions": "操作",
+    "openMenu": "打开菜单"
+  },
+  "navigation": {
+    "dashboard": "仪表板",
+    "parcels": "包裹",
+    "clients": "客户",
+    "settings": "设置",
+    "profile": "个人资料",
+    "logout": "退出登录",
+    "statistics": "统计",
+    "disputes": "争议"
+  },
+  "parcels": {
+    "title": "我的包裹",
+    "newParcel": "新包裹",
+    "tracking": "跟踪号码",
+    "recipient": "收件人",
+    "date": "日期",
+    "type": "类型",
+    "status": "状态",
+    "actions": "操作",
+    "viewInvoice": "查看发票",
+    "viewDetails": "查看详情",
+    "status": {
+      "received": "已收到",
+      "shipped": "已发货",
+      "delivered": "已送达",
+      "completed": "已完成",
+      "update": "标记为"
+    }
+  },
+  "statistics": {
+    "title": "统计",
+    "totalParcels": "包裹总数",
+    "totalRevenue": "总收入",
+    "parcelsOverTime": "包裹趋势",
+    "parcelsByStatus": "包裹状态分布",
+    "monthlyRevenue": "月度收入"
+  },
+  "settings": {
+    "title": "设置",
+    "description": "管理您的账户和应用程序设置",
+    "preferences": "偏好设置",
+    "language": "语言",
+    "notifications": "通知",
+    "security": "安全",
+    "pricing": "定价",
+    "roles": "角色",
+    "employees": "员工",
+    "languages": {
+      "fr": "法语",
+      "en": "英语",
+      "zh": "中文"
+    }
+  }
+}

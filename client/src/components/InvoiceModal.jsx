@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, Suspense } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -6,6 +6,12 @@ import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import InvoicePDF from './InvoicePDF';
 
 export default function InvoiceModal({ open, setOpen, invoiceData }) {
+  const [isClient, setIsClient] = useState(false);
+
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   if (!invoiceData) return null;
 
   return (
@@ -54,21 +60,35 @@ export default function InvoiceModal({ open, setOpen, invoiceData }) {
 
                     <div className="mt-4 bg-white shadow-sm rounded-lg">
                       <div className="h-[calc(100vh-300px)] w-full">
-                        <PDFViewer className="w-full h-full">
-                          <InvoicePDF data={invoiceData} />
-                        </PDFViewer>
+                        {isClient ? (
+                          <Suspense fallback={
+                            <div className="w-full h-full flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                            </div>
+                          }>
+                            <PDFViewer className="w-full h-full border-0" showToolbar={false}>
+                              <InvoicePDF data={invoiceData} />
+                            </PDFViewer>
+                          </Suspense>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 rounded-b-lg">
-                        <PDFDownloadLink
-                          document={<InvoicePDF data={invoiceData} />}
-                          fileName={`facture_${invoiceData?.tracking_number}.pdf`}
-                          className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                        >
-                          {({ blob, url, loading, error }) =>
-                            loading ? 'Génération du PDF...' : 'Télécharger la facture'
-                          }
-                        </PDFDownloadLink>
+                        {isClient && (
+                          <PDFDownloadLink
+                            document={<InvoicePDF data={invoiceData} />}
+                            fileName={`facture_${invoiceData?.tracking_number}.pdf`}
+                            className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                          >
+                            {({ blob, url, loading, error }) =>
+                              loading ? 'Génération du PDF...' : 'Télécharger la facture'
+                            }
+                          </PDFDownloadLink>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -1,0 +1,109 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "loading": "Chargement...",
+    "success": "Succès",
+    "error": "Erreur",
+    "actions": "Actions",
+    "openMenu": "Ouvrir le menu",
+    "close": "Fermer",
+    "submit": "Envoyer",
+    "required": "Obligatoire",
+    "optional": "Optionnel",
+    "search": "Rechercher",
+    "select": "Sélectionner",
+    "or": "ou"
+  },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "parcels": "Colis",
+    "clients": "Clients",
+    "settings": "Paramètres",
+    "profile": "Profil",
+    "logout": "Déconnexion",
+    "statistics": "Statistiques"
+  },
+  "parcels": {
+    "title": "Mes Colis",
+    "newParcel": "Nouveau Colis",
+    "tracking": "Numéro de suivi",
+    "recipient": "Destinataire",
+    "date": "Date",
+    "type": "Type",
+    "status": "Statut",
+    "actions": "Actions",
+    "viewInvoice": "Voir la facture",
+    "viewDetails": "Voir les détails",
+    "form": {
+      "title": "Nouveau colis",
+      "close": "Fermer",
+      "recipient": "Destinataire",
+      "newRecipient": "Nouveau destinataire",
+      "recipientName": "Nom complet",
+      "recipientPhone": "Téléphone",
+      "recipientEmail": "Email",
+      "recipientAddress": "Adresse",
+      "shippingType": "Type d'envoi",
+      "shippingTypes": {
+        "standard": "Standard",
+        "express": "Express",
+        "maritime": "Maritime"
+      },
+      "country": "Pays de destination",
+      "weight": "Poids (kg)",
+      "cbm": "Volume (m³)",
+      "price": "Prix estimé",
+      "specialInstructions": "Instructions spéciales",
+      "photos": "Photos",
+      "photosLimit": "Vous pouvez ajouter jusqu'à 5 photos",
+      "loading": "Création...",
+      "submit": "Créer le colis",
+      "cancel": "Annuler",
+      "errors": {
+        "photoLimit": "Vous ne pouvez pas ajouter plus de 5 photos",
+        "cbmRequired": "Le volume CBM est obligatoire pour un envoi maritime",
+        "weightRequired": "Le poids est obligatoire pour un envoi standard ou express",
+        "priceCalculation": "Impossible de calculer le prix. Veuillez vérifier les informations.",
+        "recipientCreation": "Erreur lors de la création du destinataire",
+        "recipientSelection": "Veuillez sélectionner un destinataire",
+        "parcelCreation": "Erreur lors de la création du colis"
+      },
+      "success": "Colis créé avec succès"
+    },
+    "status": {
+      "received": "Reçu",
+      "shipped": "Expédié",
+      "delivered": "Livré",
+      "completed": "Terminé",
+      "update": "Marquer comme"
+    }
+  },
+  "statistics": {
+    "title": "Statistiques",
+    "totalParcels": "Nombre total de colis",
+    "totalRevenue": "Chiffre d'affaires total",
+    "parcelsOverTime": "Évolution des colis",
+    "parcelsByStatus": "Répartition par statut",
+    "parcelsByCountry": "Répartition par pays",
+    "monthlyRevenue": "Chiffre d'affaires mensuel"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "description": "Gérer vos paramètres de compte et d'application",
+    "preferences": "Préférences",
+    "language": "Langue",
+    "notifications": "Notifications",
+    "security": "Sécurité",
+    "pricing": "Tarification",
+    "roles": "Rôles",
+    "employees": "Employés",
+    "languages": {
+      "fr": "Français",
+      "en": "Anglais",
+      "zh": "Chinois"
+    }
+  }
+}

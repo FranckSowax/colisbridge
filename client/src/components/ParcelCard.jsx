@@ -29,13 +29,23 @@ const destinations = {
   togo: { name: 'TOGO', flag: '🇹🇬' },
   cote_ivoire: { name: "CÔTE D'IVOIRE", flag: '🇨🇮' },
   dubai: { name: 'DUBAÏ', flag: '🇦🇪' },
+  chine: { name: 'CHINE', flag: '🇨🇳' },
+  turquie: { name: 'TURQUIE', flag: '🇹🇷' },
+};
+
+const statusStyles = {
+  reçu: 'bg-yellow-50 text-yellow-800 ring-yellow-600/20',
+  expédié: 'bg-blue-50 text-blue-800 ring-blue-600/20',
+  terminé: 'bg-green-50 text-green-800 ring-green-600/20',
+  receptionne: 'bg-green-50 text-green-800 ring-green-600/20',
+  litige: 'bg-red-50 text-red-800 ring-red-600/20'
 };
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
+export default function ParcelCard({ parcel, onStatusChange, onViewDetails, onViewInvoice }) {
   const formatDate = (date) => {
     if (!date) return '-';
     try {
@@ -50,6 +60,12 @@ export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
     if (onStatusChange) {
       onStatusChange(parcel.id, newStatus);
     }
+  };
+
+  const getNextStatus = (currentStatus) => {
+    const statuses = ['reçu', 'expédié', 'receptionne', 'terminé', 'litige'];
+    const currentIndex = statuses.indexOf(currentStatus);
+    return currentIndex < statuses.length - 1 ? statuses[currentIndex + 1] : null;
   };
 
   return (
@@ -98,6 +114,19 @@ export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
                   <div className="border-t border-gray-100 my-1"></div>
                 </div>
                 
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={() => onViewInvoice(parcel)}
+                      className={classNames(
+                        active ? 'bg-gray-50' : '',
+                        'block px-3 py-1 text-sm leading-6 text-gray-900 w-full text-left'
+                      )}
+                    >
+                      Voir la facture
+                    </button>
+                  )}
+                </Menu.Item>
                 <Menu.Item>
                   {({ active }) => (
                     <button

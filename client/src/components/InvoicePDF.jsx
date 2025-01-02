@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react';
-import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { supabase } from '../config/supabaseClient';
 
-// Création des styles
+// Définition de la couleur de marque
+const BRAND_COLOR = '#177ab0';
+
+// Création des styles avec StyleSheet.create
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
-    padding: 40,
-    fontSize: 12,
+    padding: 30,
+    fontSize: 10,
+    backgroundColor: '#ffffff',
   },
   header: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   headerContent: {
     flexDirection: 'row',
@@ -22,292 +24,293 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     width: 100,
+    height: 100,
   },
   logo: {
     width: '100%',
-    maxHeight: 80,
+    height: '100%',
+    objectFit: 'contain',
   },
   companyInfoContainer: {
     flex: 1,
-    marginLeft: 40,
+    marginLeft: 20,
     alignItems: 'flex-end',
   },
   companyName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontSize: 18,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 6,
+    color: BRAND_COLOR,
   },
   companyDetails: {
-    fontSize: 10,
+    fontSize: 9,
     marginBottom: 2,
     textAlign: 'right',
+    color: '#4a5568',
   },
   invoiceTitle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 10,
+    marginTop: 15,
+    paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#e2e8f0',
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4F46E5',
-    marginBottom: 5,
+    fontSize: 20,
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND_COLOR,
+    marginBottom: 6,
   },
   invoiceDate: {
-    color: '#4B5563',
-    fontSize: 10,
+    color: '#4a5568',
+    fontSize: 9,
+    marginTop: 2,
   },
   section: {
-    marginBottom: 40,
+    marginBottom: 20,
     padding: 15,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 5,
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#4F46E5',
+    fontSize: 12,
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND_COLOR,
     marginBottom: 10,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   text: {
-    color: '#4B5563',
+    color: '#4a5568',
+    marginBottom: 4,
+    fontSize: 9,
+    lineHeight: 1.3,
   },
-  bold: {
-    fontFamily: 'Helvetica-Bold',
-    fontWeight: 'bold',
+  recipientSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  centerText: {
-    textAlign: 'center',
+  recipientInfo: {
+    flex: 1,
+  },
+  shippingInfo: {
+    flex: 1,
+    marginLeft: 20,
   },
   table: {
-    marginBottom: 30,
+    marginBottom: 15,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#4F46E5',
-    color: '#ffffff',
-    padding: 10,
-    fontSize: 12,
-    fontWeight: 'bold',
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
+    backgroundColor: BRAND_COLOR,
+    padding: 8,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
   },
   tableHeaderCell: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
     flex: 1,
+    textAlign: 'center',
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    borderBottomStyle: 'solid',
-    padding: 10,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
   tableCell: {
     flex: 1,
+    fontSize: 9,
+    textAlign: 'center',
+    color: '#4a5568',
   },
-  total: {
-    marginTop: 30,
-    paddingTop: 10,
+  totalSection: {
+    marginTop: 15,
+    paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#e2e8f0',
   },
   totalRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  finalTotal: {
-    backgroundColor: '#F3F4F6',
-    padding: 15,
-    borderRadius: 5,
+    justifyContent: 'flex-end',
+    marginBottom: 6,
+    paddingRight: 15,
   },
   totalLabel: {
-    fontSize: 14,
-    color: '#111827',
+    fontFamily: 'Helvetica-Bold',
+    color: '#4a5568',
+    fontSize: 10,
+    marginRight: 30,
   },
   totalAmount: {
-    fontSize: 14,
-    color: '#111827',
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND_COLOR,
+    fontSize: 10,
+    minWidth: 80,
+    textAlign: 'right',
+  },
+  grandTotal: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: '#e2e8f0',
+  },
+  grandTotalLabel: {
+    fontFamily: 'Helvetica-Bold',
+    color: '#2d3748',
+    fontSize: 12,
+    marginRight: 30,
+  },
+  grandTotalAmount: {
+    fontFamily: 'Helvetica-Bold',
+    color: BRAND_COLOR,
+    fontSize: 12,
+    minWidth: 80,
+    textAlign: 'right',
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
+    bottom: 20,
+    left: 30,
+    right: 30,
     textAlign: 'center',
+    color: '#718096',
+    fontSize: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 20,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 15,
   },
   footerText: {
-    fontSize: 10,
-    color: '#4B5563',
-    textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 3,
   },
-  highlight: {
-    color: '#4F46E5',
+  footerLink: {
+    color: BRAND_COLOR,
+    textDecoration: 'none',
   }
 });
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'XAF',
+// Fonction de formatage de la devise
+const formatCurrency = (amount, currency = 'XAF') => {
+  const formattedNumber = new Intl.NumberFormat('fr-FR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(amount).replace(/\s/g, '').replace(/,/g, '.');
+
+  return `${formattedNumber} FCFA`;
 };
 
+// Composant principal
 const InvoicePDF = ({ data }) => {
-  const [logoBase64, setLogoBase64] = useState(null);
+  if (!data) return null;
 
-  useEffect(() => {
-    const fetchAndConvertImage = async () => {
-      try {
-        const response = await fetch('https://ayxltzvmpqxtyfvfotxd.supabase.co/storage/v1/object/public/company-assets/twinsk-logo.png');
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error('Error fetching logo:', error);
-        return null;
-      }
-    };
-
-    fetchAndConvertImage().then(base64 => setLogoBase64(base64));
-  }, []);
-
-  const MyDoc = () => (
+  return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* Contenu de la facture */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            {logoBase64 && (
-              <View style={styles.logoContainer}>
-                <Image
-                  style={styles.logo}
-                  src={logoBase64}
-                />
-              </View>
-            )}
+            <View style={styles.logoContainer}>
+              <Image 
+                src="https://i.imgur.com/ZU2ZGQk.png"
+                style={styles.logo}
+              />
+            </View>
             <View style={styles.companyInfoContainer}>
-              <Text style={styles.companyName}>TWINSK LOGISTICS</Text>
+              <Text style={styles.companyName}>TWINSK COMPANY</Text>
               <Text style={styles.companyDetails}>506, Tongyue Building</Text>
               <Text style={styles.companyDetails}>No.7, Tongya East Street Xicha Road</Text>
-              <Text style={styles.companyDetails}>Baiyun District</Text>
-              <Text style={styles.companyDetails}>Guangzhou, China</Text>
+              <Text style={styles.companyDetails}>Baiyun District, Guangzhou, China</Text>
               <Text style={styles.companyDetails}>Logistics@twinskcompanyltd.com</Text>
-              <Text style={styles.companyDetails}>Tel : +8613928824921</Text>
+              <Text style={styles.companyDetails}>Address: Gabon Libreville</Text>
+              <Text style={styles.companyDetails}>Tel: +8613928824921</Text>
             </View>
           </View>
+          
           <View style={styles.invoiceTitle}>
-            <Text style={styles.title}>FACTURE</Text>
-            <Text style={styles.invoiceDate}>
-              Date: {format(new Date(), 'dd/MM/yyyy')}
-            </Text>
+            <View>
+              <Text style={styles.title}>FACTURE #{data.tracking_number}</Text>
+              <Text style={styles.invoiceDate}>
+                Date d'émission : {format(new Date(data.created_at), 'dd MMMM yyyy', { locale: fr })}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Informations du destinataire */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Destinataire</Text>
-          <Text style={[styles.text, styles.bold]}>{data?.recipient_name || ''}</Text>
-          <Text style={styles.text}>{data?.recipient?.phone || data?.recipient?.phone_number || ''}</Text>
-          <Text style={styles.text}>{data?.recipient?.address || ''}</Text>
-          <Text style={styles.text}>Destination: {data?.destination_country || ''}</Text>
-          <Text style={styles.text}>Type d'envoi: {data?.shipping_type === 'standard' ? 'Standard' :
-                                                  data?.shipping_type === 'express' ? 'Express' :
-                                                  data?.shipping_type === 'maritime' ? 'Maritime' : 
-                                                  data?.shipping_type || ''}</Text>
-        </View>
-
-        {/* Table d'articles */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.tableHeaderCell}>Description</Text>
-            <Text style={[styles.tableHeaderCell, styles.centerText]}>Poids/Volume</Text>
-            <Text style={styles.tableHeaderCell}>Type</Text>
-            <Text style={styles.tableHeaderCell}>Prix</Text>
-          </View>
-
-          <View style={styles.tableRow}>
-            <Text style={styles.tableCell}>
-              Colis #<Text style={styles.bold}>{data?.tracking_number || ''}</Text>{'\n'}
-              Type: {data?.shipping_type === 'standard' ? 'Standard' :
-                      data?.shipping_type === 'express' ? 'Express' :
-                      data?.shipping_type === 'maritime' ? 'Maritime' : 
-                      data?.shipping_type || ''}
-            </Text>
-            <Text style={[styles.tableCell, styles.centerText]}>
-              {data?.weight ? `${data.weight} kg` : ''}
-              {data?.volume_cbm ? `\n${data.volume_cbm} m³` : ''}
-            </Text>
-            <Text style={styles.tableCell}>
-              {data?.shipping_type === 'standard' ? 'Standard' :
-               data?.shipping_type === 'express' ? 'Express' :
-               data?.shipping_type === 'maritime' ? 'Maritime' : 
-               data?.shipping_type || ''}
-            </Text>
-            <Text style={styles.tableCell}>
-              {data?.total_price ? `${new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XAF',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-                useGrouping: true,
-              }).format(data.total_price).replace(/\s/g, '.')}` : ''}
-            </Text>
+          <View style={styles.recipientSection}>
+            <View style={styles.recipientInfo}>
+              <Text style={styles.sectionTitle}>Destinataire</Text>
+              <Text style={styles.text}>{data.recipient?.name}</Text>
+              <Text style={styles.text}>{data.recipient?.phone}</Text>
+              <Text style={styles.text}>{data.recipient?.address}</Text>
+              <Text style={styles.text}>{data.recipient?.email}</Text>
+            </View>
+            <View style={styles.shippingInfo}>
+              <Text style={styles.sectionTitle}>Expédition</Text>
+              <Text style={styles.text}>Type: {data.shipping_type}</Text>
+              <Text style={styles.text}>Destination: {data.destination_country}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Total */}
-        <View style={styles.total}>
-          <View style={[styles.totalRow, styles.finalTotal]}>
-            <Text style={[styles.totalLabel, styles.bold]}>TOTAL</Text>
-            <Text style={[styles.totalAmount, styles.bold]}>
-              {data?.total_price ? `${new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XAF',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-                useGrouping: true,
-              }).format(data.total_price).replace(/\s/g, '.')}` : ''}
-            </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Détails du colis</Text>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text style={styles.tableHeaderCell}>Description</Text>
+              <Text style={styles.tableHeaderCell}>Type d'envoi</Text>
+              <Text style={styles.tableHeaderCell}>Poids/Volume</Text>
+              <Text style={styles.tableHeaderCell}>Prix</Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableCell}>Colis</Text>
+              <Text style={styles.tableCell}>{data.shipping_type}</Text>
+              <Text style={styles.tableCell}>
+                {data.weight ? `${data.weight} kg` : `${data.cbm} m³`}
+              </Text>
+              <Text style={styles.tableCell}>
+                {formatCurrency(data.total_price)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.totalSection}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Sous-total</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(data.total_price)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>TVA (0%)</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(0)}</Text>
+            </View>
+            <View style={[styles.totalRow, styles.grandTotal]}>
+              <Text style={styles.grandTotalLabel}>Total</Text>
+              <Text style={styles.grandTotalAmount}>{formatCurrency(data.total_price)}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Pied de page */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Please make all checks payable to TWINSK LOGISTICS.</Text>
           <Text style={styles.footerText}>Thanks for your business</Text>
-          <Text style={styles.footerText}>Logistics@twinskcompanyltd.com | www.twinskcompanyltd.com</Text>
+          <Text style={styles.footerText}>
+            <Text style={styles.footerLink}>Logistics@twinskcompanyltd.com</Text>
+            {' | '}
+            <Text style={styles.footerLink}>www.twinskcompanyltd.com</Text>
+          </Text>
         </View>
       </Page>
     </Document>
   );
-
-  if (!logoBase64) {
-    return (
-      <Document>
-        <Page size="A4" style={styles.page}>
-          <Text>Loading...</Text>
-        </Page>
-      </Document>
-    );
-  }
-
-  return <MyDoc />;
 };
 
 export default InvoicePDF;

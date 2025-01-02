@@ -1,68 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../config/supabaseClient';
 
-export function useCalculatePrice() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export const useCalculatePrice = ({ country, shippingType, weight, cbm }) => {
+  return useQuery({
+    queryKey: ['price-calculation', country, shippingType, weight, cbm],
+    queryFn: async () => {
+      if (!country || !shippingType || (!weight && !cbm)) {
+        return { total: 0, formatted: '-' };
+      }
 
-  const calculatePrice = async ({ country, shippingType, weight, cbm }) => {
-    setLoading(true);
-    setError(null);
+      // Récupérer d'abord la règle de prix
+      const { data: rules, error: rulesError } = await supabase
+        .from('pricing_rules')
+        .select('*')
+        .eq('country_code', country.toLowerCase())
+        .eq('shipping_type', shippingType.toLowerCase())
+        .single();
 
-    try {
-      const { data, error: rpcError } = await supabase.rpc(
-        'calculate_parcel_price',
-        {
-          p_country: country,
-          p_shipping_type: shippingType,
-          p_weight: weight || null,
-          p_cbm: cbm || null
-        }
-      );
+      if (rulesError) throw rulesError;
+      if (!rules) throw new Error('Aucune règle de tarification trouvée');
 
-      if (rpcError) throw rpcError;
-
-      if (!data.success) {
-        throw new Error(data.error);
+      // Calculer le prix total
+      let totalPrice = 0;
+      if (rules.unit_type === 'kg' && weight) {
+        totalPrice = rules.price_per_unit * weight;
+      } else if (rules.unit_type === 'cbm' && cbm) {
+        totalPrice = rules.price_per_unit * cbm;
       }
 
       return {
-        totalPrice: data.total_price,
-        currency: data.currency,
-        formattedPrice: formatPrice(data.total_price, data.currency)
+        total: totalPrice,
+        formatted: new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency: rules.currency,
+          minimumFractionDigits: 2
+        }).format(totalPrice),
+        unitPrice: rules.price_per_unit,
+        unitType: rules.unit_type,
+        currency: rules.currency
       };
-    } catch (err) {
-      setError(err.message);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatPrice = (amount, currency) => {
-    if (!amount || !currency) return '';
-
-    const formatOptions = {
-      EUR: { style: 'currency', currency: 'EUR' },
-      USD: { style: 'currency', currency: 'USD' },
-      XAF: { 
-        style: 'currency',
-        currency: 'XAF',
-        currencyDisplay: 'code'
-      }
-    };
-
-    try {
-      return new Intl.NumberFormat('fr-FR', formatOptions[currency] || {}).format(amount);
-    } catch (error) {
-      console.error('Error formatting price:', error);
-      return `${amount} ${currency}`;
-    }
-  };
-
-  return {
-    calculatePrice,
-    loading,
-    error
-  };
-}
+    },
+    enabled: Boolean(country && shippingType && (weight || cbm))
+  });
+};

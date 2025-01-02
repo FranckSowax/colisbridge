@@ -1,0 +1,110 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "actions": "Actions",
+    "openMenu": "Open menu",
+    "close": "Close",
+    "submit": "Submit",
+    "required": "Required",
+    "optional": "Optional",
+    "search": "Search",
+    "select": "Select",
+    "or": "or"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "parcels": "Parcels",
+    "clients": "Clients",
+    "settings": "Settings",
+    "profile": "Profile",
+    "logout": "Logout",
+    "statistics": "Statistics",
+    "disputes": "Disputes"
+  },
+  "parcels": {
+    "title": "My Parcels",
+    "newParcel": "New Parcel",
+    "tracking": "Tracking Number",
+    "recipient": "Recipient",
+    "date": "Date",
+    "type": "Type",
+    "status": "Status",
+    "actions": "Actions",
+    "viewInvoice": "View Invoice",
+    "viewDetails": "View Details",
+    "form": {
+      "title": "New Parcel",
+      "close": "Close",
+      "recipient": "Recipient",
+      "newRecipient": "New Recipient",
+      "recipientName": "Full Name",
+      "recipientPhone": "Phone",
+      "recipientEmail": "Email",
+      "recipientAddress": "Address",
+      "shippingType": "Shipping Type",
+      "shippingTypes": {
+        "standard": "Standard",
+        "express": "Express",
+        "maritime": "Maritime"
+      },
+      "country": "Destination Country",
+      "weight": "Weight (kg)",
+      "cbm": "Volume (m³)",
+      "price": "Estimated Price",
+      "specialInstructions": "Special Instructions",
+      "photos": "Photos",
+      "photosLimit": "You can add up to 5 photos",
+      "loading": "Creating...",
+      "submit": "Create Parcel",
+      "cancel": "Cancel",
+      "errors": {
+        "photoLimit": "You cannot add more than 5 photos",
+        "cbmRequired": "CBM volume is required for maritime shipping",
+        "weightRequired": "Weight is required for standard or express shipping",
+        "priceCalculation": "Unable to calculate price. Please check the information.",
+        "recipientCreation": "Error creating recipient",
+        "recipientSelection": "Please select a recipient",
+        "parcelCreation": "Error creating parcel"
+      },
+      "success": "Parcel created successfully"
+    },
+    "status": {
+      "received": "Received",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "update": "Mark as"
+    }
+  },
+  "statistics": {
+    "title": "Statistics",
+    "totalParcels": "Total Parcels",
+    "totalRevenue": "Total Revenue",
+    "parcelsOverTime": "Parcels Over Time",
+    "parcelsByStatus": "Parcels by Status",
+    "parcelsByCountry": "Parcels by Country",
+    "monthlyRevenue": "Monthly Revenue"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage your account and application settings",
+    "preferences": "Preferences",
+    "language": "Language",
+    "notifications": "Notifications",
+    "security": "Security",
+    "pricing": "Pricing",
+    "roles": "Roles",
+    "employees": "Employees",
+    "languages": {
+      "fr": "French",
+      "en": "English",
+      "zh": "Chinese"
+    }
+  }
+}
