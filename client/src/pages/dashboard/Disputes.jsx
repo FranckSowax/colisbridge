@@ -40,6 +40,42 @@ export default function Disputes() {
     fetchDisputes();
   }, []);
 
+  // Fonction utilitaire pour la conversion sécurisée en chaîne
+  const safeString = (value) => {
+    if (value === null || value === undefined) return '';
+    return String(value).toLowerCase();
+  };
+
+  const handleSearch = (e) => {
+    // S'assurer que la valeur est toujours une chaîne
+    const newValue = e?.target?.value ?? '';
+    setSearchQuery(newValue);
+  };
+
+  const filteredDisputes = disputes.filter(dispute => {
+    // Convertir la recherche en chaîne de manière sécurisée
+    const search = safeString(searchQuery);
+    if (!search) return true;
+    
+    // Vérifier si le litige existe
+    if (!dispute) return false;
+
+    // Récupérer l'objet parcels de manière sécurisée
+    const parcels = dispute.parcels ?? {};
+
+    // Convertir toutes les valeurs en chaînes de manière sécurisée
+    const trackingNumber = safeString(parcels.tracking_number);
+    const recipientName = safeString(parcels.recipient_name);
+    const description = safeString(dispute.description);
+
+    // Vérifier si l'un des champs contient le terme de recherche
+    return (
+      trackingNumber.includes(search) ||
+      recipientName.includes(search) ||
+      description.includes(search)
+    );
+  });
+
   const fetchDisputes = async () => {
     try {
       setLoading(true);
@@ -68,19 +104,6 @@ export default function Disputes() {
       setLoading(false);
     }
   };
-
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-  };
-
-  const filteredDisputes = disputes.filter(dispute => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      dispute.parcels?.tracking_number?.toLowerCase().includes(searchLower) ||
-      dispute.parcels?.recipient_name?.toLowerCase().includes(searchLower) ||
-      dispute.description?.toLowerCase().includes(searchLower)
-    );
-  });
 
   const handleRowClick = (dispute) => {
     setSelectedDispute(dispute);
@@ -133,7 +156,7 @@ export default function Disputes() {
         <SearchBar
           placeholder="Rechercher par N° de suivi, destinataire ou description..."
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={handleSearch}
           onSearch={handleSearch}
         />
       </div>

@@ -10,8 +10,10 @@ import {
   UserIcon,
   PhoneIcon,
   GlobeAltIcon,
-  ScaleIcon
+  ScaleIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
+import ParcelPricing from './ParcelPricing';
 
 const statuses = {
   recu: { label: 'Reçu', color: 'bg-yellow-100 text-yellow-800 ring-yellow-600/20' },
@@ -191,6 +193,13 @@ export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
           </div>
         )}
 
+        {parcel.cbm && (
+          <div className="flex items-center text-sm text-gray-500">
+            <CubeIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+            <span>{parcel.cbm} m³</span>
+          </div>
+        )}
+
         <div className="flex items-center text-sm text-gray-500">
           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
           <span>Créé le {formatDate(parcel.created_at)}</span>
@@ -202,12 +211,15 @@ export default function ParcelCard({ parcel, onStatusChange, onViewDetails }) {
             <span>Envoyé le {formatDate(parcel.shipping_date)}</span>
           </div>
         )}
+
+        {/* Composant de tarification */}
+        <ParcelPricing parcel={parcel} />
       </div>
 
-      {/* Bouton "Voir les détails" visible uniquement sur desktop */}
-      <div className="hidden lg:block px-4 py-3 border-t border-gray-200">
+      {/* Bouton "Voir les détails" */}
+      <div className="px-4 py-3 bg-gray-50">
         <button
-          onClick={() => onViewDetails(parcel)}
+          onClick={() => onViewDetails && onViewDetails(parcel)}
           className="w-full text-center text-sm font-medium text-indigo-600 hover:text-indigo-500"
         >
           Voir les détails

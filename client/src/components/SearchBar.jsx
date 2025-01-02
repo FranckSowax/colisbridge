@@ -1,33 +1,29 @@
-import React, { useState } from 'react'
-import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
+import React from 'react';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-export default function SearchBar({ onSearch, placeholder = 'Rechercher...' }) {
-  const [query, setQuery] = useState('')
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (onSearch) {
-      onSearch(query)
+const SearchBar = ({ value = '', onChange, placeholder }) => {
+  const handleChange = (event) => {
+    if (typeof onChange === 'function') {
+      onChange(event.target.value);
     }
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <div className="relative flex w-full items-center">
+    <div className="w-full">
+      <div className="relative mt-2">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
         <input
           type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="block w-full rounded-md border border-gray-200 bg-gray-50 py-1.5 pl-3 pr-10 text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm sm:leading-6"
-          placeholder={placeholder}
+          value={value}
+          onChange={handleChange}
+          className="block w-full rounded-full bg-white py-3.5 pl-11 pr-4 text-gray-900 ring-1 ring-inset ring-gray-100 placeholder:text-gray-400 focus:ring-1 focus:ring-inset focus:ring-gray-200 sm:text-sm sm:leading-6 shadow-sm"
+          placeholder={placeholder || "Rechercher..."}
         />
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-          <MagnifyingGlassIcon
-            className="h-5 w-5 text-gray-400 hover:text-gray-500"
-            aria-hidden="true"
-          />
-        </div>
       </div>
-    </form>
-  )
-}
+    </div>
+  );
+};
+
+export default SearchBar;

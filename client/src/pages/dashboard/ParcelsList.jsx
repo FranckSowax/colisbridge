@@ -123,7 +123,7 @@ export default function ParcelsList() {
         <SearchBar
           placeholder="Rechercher par destinataire, téléphone ou N° de suivi..."
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           onSearch={handleSearch}
         />
       </div>

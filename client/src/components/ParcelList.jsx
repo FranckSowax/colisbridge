@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from 'react'
+import React, { Fragment, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../config/supabaseClient'
@@ -6,6 +6,7 @@ import { formatDate } from '@utils/dateUtils';
 import { Menu } from '@headlessui/react';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import ParcelDetailsDrawer from './ParcelDetailsDrawer';
+import toast from 'react-hot-toast';
 
 const COUNTRIES = {
   france: { name: 'France', flag: '🇫🇷' },
@@ -34,7 +35,79 @@ export default function ParcelList({ parcels = [], showCustomerInfo = true, onSt
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedParcel, setSelectedParcel] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [pricingRules, setPricingRules] = useState({});
   const pageSize = 10;
+
+  useEffect(() => {
+    fetchPricingRules();
+  }, []);
+
+  const fetchPricingRules = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pricing_rules')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // Organiser les règles par pays et type d'envoi
+      const rules = {};
+      data.forEach(rule => {
+        if (!rules[rule.country_code]) {
+          rules[rule.country_code] = {};
+        }
+        rules[rule.country_code][rule.shipping_type] = rule;
+      });
+      
+      setPricingRules(rules);
+    } catch (error) {
+      console.error('Error fetching pricing rules:', error);
+    }
+  };
+
+  const calculatePrice = (parcel) => {
+    if (!pricingRules[parcel.country]?.[parcel.shipping_type]) {
+      return null;
+    }
+
+    const rule = pricingRules[parcel.country][parcel.shipping_type];
+    
+    if (['standard', 'express'].includes(parcel.shipping_type) && parcel.weight) {
+      return (parcel.weight * rule.price_per_kg).toFixed(2);
+    } else if (parcel.shipping_type === 'maritime' && parcel.cbm) {
+      return (parcel.cbm * rule.price_per_cbm).toFixed(2);
+    }
+    
+    return null;
+  };
+
+  const generateInvoice = async (parcel) => {
+    const price = calculatePrice(parcel);
+    if (!price) {
+      toast.error('Impossible de générer la facture : tarif non trouvé');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('parcels')
+        .update({
+          price: price,
+          invoice_number: `INV-${Date.now()}`,
+          invoice_date: new Date().toISOString(),
+          invoice_status: 'generated'
+        })
+        .eq('id', parcel.id);
+
+      if (error) throw error;
+      toast.success('Facture générée avec succès');
+      // Rafraîchir les données
+      window.location.reload();
+    } catch (error) {
+      toast.error('Erreur lors de la génération de la facture');
+      console.error('Error:', error);
+    }
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['parcels', currentPage, searchQuery],
@@ -193,8 +266,33 @@ export default function ParcelList({ parcels = [], showCustomerInfo = true, onSt
                   )}
                 </div>
 
+                {/* Prix et Facturation */}
+                <div className="flex justify-between items-center pt-3 mt-3 border-t border-gray-100">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">💰</span>
+                    <span className="text-sm font-medium">
+                      {calculatePrice(parcel) ? `${calculatePrice(parcel)}€` : 'Prix non défini'}
+                    </span>
+                  </div>
+                  
+                  {!parcel.invoice_number && calculatePrice(parcel) && (
+                    <button
+                      onClick={() => generateInvoice(parcel)}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Générer la facture
+                    </button>
+                  )}
+                  
+                  {parcel.invoice_number && (
+                    <div className="text-sm text-gray-500">
+                      Facture {parcel.invoice_number}
+                    </div>
+                  )}
+                </div>
+
                 {/* Action Button */}
-                <div className="pt-3 mt-3 flex justify-end border-t border-gray-100">
+                <div className="pt-3 flex justify-end border-t border-gray-100">
                   <button
                     onClick={() => openDrawer(parcel)}
                     className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"

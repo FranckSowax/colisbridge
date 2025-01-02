@@ -1,305 +1,414 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@config/supabaseClient';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import {
-  CubeIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  UsersIcon
-} from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../config/supabaseClient';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartBarIcon, GlobeAltIcon, CurrencyEuroIcon, CubeIcon } from '@heroicons/react/24/outline';
+
+// Liste des pays supportés
+const SUPPORTED_COUNTRIES = ['Gabon', 'Togo', 'Cote d\'Ivoire', 'France', 'Dubai'];
 
 export default function Statistics() {
-  const [stats, setStats] = useState({
-    monthlyParcels: 0,
-    revenue: 0,
-    activeDisputes: 0,
-    newClients: 0,
-    monthlyGrowth: 0,
-    disputesGrowth: 0,
-    clientsGrowth: 0,
-    revenueData: [],
-    countryPerformance: []
-  });
+  const { user } = useAuth();
+  const [revenueData, setRevenueData] = useState([]);
+  const [countryData, setCountryData] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState('6 derniers mois');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('6');
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [completedRevenue, setCompletedRevenue] = useState(0);
+  const [totalParcels, setTotalParcels] = useState(0);
 
   useEffect(() => {
-    fetchStats();
-  }, [selectedPeriod]);
+    let channel;
+    if (user?.id) {
+      fetchStatistics();
+      channel = subscribeToParcelUpdates();
+    }
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
+  }, [user, selectedPeriod]);
 
-  const fetchStats = async () => {
+  const subscribeToParcelUpdates = () => {
+    const channel = supabase
+      .channel('parcel-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'parcels',
+          filter: `created_by=eq.${user.id}`,
+        },
+        async (payload) => {
+          if (payload.new.status === 'Terminé' && payload.old.status !== 'Terminé') {
+            setCompletedRevenue(prev => prev + Number(payload.new.price || 0));
+            await fetchStatistics();
+          }
+        }
+      )
+      .subscribe();
+
+    return channel;
+  };
+
+  const fetchStatistics = async () => {
     try {
       setLoading(true);
       setError(null);
-      const startDate = startOfMonth(new Date());
-      const endDate = endOfMonth(new Date());
-      const prevStartDate = startOfMonth(subMonths(new Date(), 1));
-
-      // Récupérer les paramètres de tarification
-      const { data: settings } = await supabase
-        .from('settings')
+      
+      // Récupérer les statistiques depuis la table statistics
+      const { data: stats, error: statsError } = await supabase
+        .from('statistics')
         .select('*')
+        .eq('user_id', user.id)
         .single();
 
-      // Récupérer les colis du mois en cours
-      const { data: currentMonthParcels } = await supabase
-        .from('parcels')
-        .select('*')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+      if (statsError) {
+        // Si les statistiques n'existent pas encore, on les initialise avec les données des colis
+        if (statsError.code === 'PGRST116') {
+          const { data: parcels, error: parcelsError } = await supabase
+            .from('parcels')
+            .select('created_at, price, status, destination_country')
+            .eq('created_by', user.id)
+            .gte('created_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString());
 
-      // Récupérer les colis du mois précédent
-      const { data: prevMonthParcels } = await supabase
-        .from('parcels')
-        .select('*')
-        .gte('created_at', prevStartDate.toISOString())
-        .lt('created_at', startDate.toISOString());
+          if (parcelsError) throw parcelsError;
 
-      // Calculer le chiffre d'affaires
-      const calculateRevenue = (parcels) => {
-        return parcels.reduce((total, parcel) => {
-          const countryTarifs = settings?.tarifs?.[parcel.destination_country] || {
-            standard: 5000,
-            express: 7500,
-            cbm: 150000
-          };
-          
-          const tarif = parcel.shipping_type === 'express' 
-            ? countryTarifs.express 
-            : countryTarifs.standard;
-
-          if (parcel.weight) {
-            total += parcel.weight * tarif;
-          }
-          if (parcel.dimensions) {
-            const dimensions = parcel.dimensions.split('x').map(Number);
-            if (dimensions.length === 3) {
-              const cbm = (dimensions[0] * dimensions[1] * dimensions[2]) / 1000000;
-              total += cbm * countryTarifs.cbm;
+          // Calculer les totaux
+          const total = (parcels || []).reduce((acc, parcel) => {
+            acc.revenue += Number(parcel.price) || 0;
+            acc.parcels += 1;
+            if (parcel.status === 'Terminé') {
+              acc.completedRevenue += Number(parcel.price) || 0;
             }
-          }
-          return total;
-        }, 0);
-      };
+            return acc;
+          }, { revenue: 0, parcels: 0, completedRevenue: 0 });
 
-      const currentRevenue = calculateRevenue(currentMonthParcels || []);
-      const prevRevenue = calculateRevenue(prevMonthParcels || []);
+          setTotalRevenue(total.revenue);
+          setCompletedRevenue(total.completedRevenue);
+          setTotalParcels(total.parcels);
 
-      // Récupérer les litiges actifs
-      const { data: disputes } = await supabase
-        .from('disputes')
-        .select('*')
-        .neq('status', 'resolved');
+          // Formater les données de chiffre d'affaires par mois
+          const monthlyRevenue = (parcels || []).reduce((acc, parcel) => {
+            if (!parcel?.created_at) return acc;
+            
+            const month = new Date(parcel.created_at).toLocaleString('fr-FR', { month: 'short' });
+            if (!acc[month]) {
+              acc[month] = {
+                total: 0,
+                completed: 0
+              };
+            }
+            acc[month].total += Number(parcel.price) || 0;
+            if (parcel.status === 'Terminé') {
+              acc[month].completed += Number(parcel.price) || 0;
+            }
+            return acc;
+          }, {});
 
-      // Récupérer les nouveaux clients
-      const { data: newClients } = await supabase
-        .from('recipients')
-        .select('*')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+          const formattedRevenueData = Object.entries(monthlyRevenue)
+            .map(([month, amounts]) => ({
+              month,
+              amount: amounts.total || 0,
+              completedAmount: amounts.completed || 0,
+            }))
+            .sort((a, b) => {
+              const months = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+              return months.indexOf(a.month) - months.indexOf(b.month);
+            });
 
-      // Calculer les performances par pays
-      const countryStats = {};
-      currentMonthParcels?.forEach(parcel => {
-        if (!countryStats[parcel.destination_country]) {
-          countryStats[parcel.destination_country] = {
-            count: 0,
-            revenue: 0
-          };
+          setRevenueData(formattedRevenueData);
+
+          // Formater les données par pays
+          const countryStats = SUPPORTED_COUNTRIES.reduce((acc, country) => {
+            acc[country] = {
+              parcels: 0,
+              revenue: 0,
+              completedRevenue: 0
+            };
+            return acc;
+          }, {});
+
+          parcels.forEach(parcel => {
+            if (parcel?.destination_country && countryStats[parcel.destination_country]) {
+              countryStats[parcel.destination_country].parcels += 1;
+              countryStats[parcel.destination_country].revenue += Number(parcel.price) || 0;
+              if (parcel.status === 'Terminé') {
+                countryStats[parcel.destination_country].completedRevenue += Number(parcel.price) || 0;
+              }
+            }
+          });
+
+          const formattedCountryData = Object.entries(countryStats)
+            .map(([country, data]) => ({
+              country,
+              ...data,
+              growth: 0 // Pas de données historiques pour le moment
+            }))
+            .sort((a, b) => b.revenue - a.revenue);
+
+          setCountryData(formattedCountryData);
+
+          // Créer l'enregistrement initial dans la table statistics
+          const { error: insertError } = await supabase
+            .from('statistics')
+            .insert({
+              user_id: user.id,
+              total_revenue: total.revenue,
+              completed_revenue: total.completedRevenue,
+              total_parcels: total.parcels,
+              month_revenue: monthlyRevenue,
+              country_stats: countryStats
+            });
+
+          if (insertError) throw insertError;
+        } else {
+          throw statsError;
         }
-        countryStats[parcel.destination_country].count += 1;
-        countryStats[parcel.destination_country].revenue += calculateRevenue([parcel]);
-      });
+      } else {
+        // Utiliser les statistiques existantes
+        setTotalRevenue(stats.total_revenue);
+        setCompletedRevenue(stats.completed_revenue);
+        setTotalParcels(stats.total_parcels);
 
-      const countryPerformance = Object.entries(countryStats).map(([country, data]) => ({
-        country,
-        count: data.count,
-        revenue: data.revenue,
-        growth: ((data.count - (prevMonthParcels?.filter(p => p.destination_country === country).length || 0)) / 
-                (prevMonthParcels?.filter(p => p.destination_country === country).length || 1) * 100).toFixed(1)
-      }));
+        // Formater les données de revenus
+        const formattedRevenueData = Object.entries(stats.month_revenue || {})
+          .map(([month, amounts]) => ({
+            month,
+            amount: amounts.total || 0,
+            completedAmount: amounts.completed || 0,
+          }))
+          .sort((a, b) => {
+            const months = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+            return months.indexOf(a.month) - months.indexOf(b.month);
+          });
 
-      setStats({
-        monthlyParcels: currentMonthParcels?.length || 0,
-        revenue: currentRevenue,
-        activeDisputes: disputes?.length || 0,
-        newClients: newClients?.length || 0,
-        monthlyGrowth: ((currentMonthParcels?.length || 0) - (prevMonthParcels?.length || 0)) / (prevMonthParcels?.length || 1) * 100,
-        revenueGrowth: ((currentRevenue - prevRevenue) / prevRevenue) * 100,
-        disputesGrowth: 0,
-        clientsGrowth: 12,
-        countryPerformance
-      });
+        setRevenueData(formattedRevenueData);
+
+        // Formater les données par pays
+        const formattedCountryData = Object.entries(stats.country_stats || {})
+          .map(([country, data]) => ({
+            country,
+            ...data,
+            growth: 0 // À calculer avec les données historiques
+          }))
+          .sort((a, b) => b.revenue - a.revenue);
+
+        setCountryData(formattedCountryData);
+      }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Erreur lors de la récupération des statistiques:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XAF',
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-50 p-4 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Erreur lors du chargement des statistiques</h3>
-              <div className="mt-2 text-sm text-red-700">{error}</div>
-            </div>
-          </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="text-red-600">
+          Une erreur est survenue: {error}
         </div>
       </div>
     );
   }
 
+  const currentMonthRevenue = revenueData[revenueData.length - 1]?.amount || 0;
+  const previousMonthRevenue = revenueData[revenueData.length - 2]?.amount || 0;
+  const revenueGrowth = previousMonthRevenue ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 : 0;
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Statistiques</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Vue d'ensemble des performances et indicateurs clés
-          </p>
+    <div className="space-y-8 px-4 sm:px-6 lg:px-8">
+      {/* Cartes de statistiques */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Chiffre d'affaires total */}
+        <div className="bg-white overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CurrencyEuroIcon className="h-6 w-6 text-gray-400" aria-hidden="true" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Chiffre d'affaires total</dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900">
+                      {totalRevenue.toLocaleString()} F CFA
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Chiffre d'affaires réalisé (Terminé) */}
+        <div className="bg-white overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CurrencyEuroIcon className="h-6 w-6 text-green-500" aria-hidden="true" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Chiffre d'affaires réalisé</dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-green-600">
+                      {completedRevenue.toLocaleString()} F CFA
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nombre total de colis */}
+        <div className="bg-white overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CubeIcon className="h-6 w-6 text-gray-400" aria-hidden="true" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Nombre total de colis</dt>
+                  <dd className="flex items-baseline">
+                    <div className="text-2xl font-semibold text-gray-900">
+                      {totalParcels.toLocaleString()}
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Cartes statistiques principales */}
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Colis du mois */}
-        <div className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6">
-          <dt>
-            <div className="absolute rounded-md bg-blue-100 p-3">
-              <CubeIcon className="h-6 w-6 text-blue-600" aria-hidden="true" />
+      {/* Graphiques */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Graphique Chiffre d'affaires */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <div className="bg-purple-100 rounded-lg p-3">
+                <ChartBarIcon className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <h2 className="text-lg font-semibold text-gray-900">Chiffre d'affaires</h2>
+                <p className="text-sm text-gray-500">{selectedPeriod}</p>
+              </div>
             </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">Colis du mois</p>
-          </dt>
-          <dd className="ml-16 flex flex-col">
-            <p className="text-2xl font-semibold text-gray-900">{stats.monthlyParcels}</p>
-            <div className="flex items-baseline">
-              <p className={`text-sm font-semibold ${stats.monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {stats.monthlyGrowth >= 0 ? '+' : ''}{stats.monthlyGrowth.toFixed(1)}%
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option>6 derniers mois</option>
+              <option>12 derniers mois</option>
+            </select>
+          </div>
+          <div className="h-80">
+            {revenueData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => {
+                      const label = name === 'amount' ? 'Total' : 'Réalisé';
+                      return [`${value.toLocaleString()} F CFA`, label];
+                    }}
+                  />
+                  <Bar dataKey="amount" name="Total" fill="#9333EA" />
+                  <Bar dataKey="completedAmount" name="Réalisé" fill="#22C55E" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Aucune donnée disponible
+              </div>
+            )}
+          </div>
+          <div className="mt-4 flex justify-between text-sm">
+            <div>
+              <p className="text-gray-500">Total du mois</p>
+              <p className="text-xl font-semibold text-gray-900">
+                {currentMonthRevenue.toLocaleString()} F CFA
               </p>
             </div>
-          </dd>
-        </div>
-
-        {/* Chiffre d'affaires */}
-        <div className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6">
-          <dt>
-            <div className="absolute rounded-md bg-green-100 p-3">
-              <ChartBarIcon className="h-6 w-6 text-green-600" aria-hidden="true" />
-            </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">Chiffre d'Affaires</p>
-          </dt>
-          <dd className="ml-16 flex flex-col">
-            <div className="flex items-baseline">
-              <p className="text-2xl font-semibold text-gray-900 truncate">
-                {formatCurrency(stats.revenue)}
+            <div>
+              <p className="text-gray-500">Croissance</p>
+              <p className={`text-xl font-semibold ${revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth.toFixed(1)}%
               </p>
             </div>
-            <p className={`text-sm font-semibold ${stats.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth.toFixed(1)}%
-            </p>
-          </dd>
+          </div>
         </div>
 
-        {/* Litiges actifs */}
-        <div className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6">
-          <dt>
-            <div className="absolute rounded-md bg-red-100 p-3">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+        {/* Performance par pays */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center mb-6">
+            <div className="bg-green-100 rounded-lg p-3">
+              <GlobeAltIcon className="h-6 w-6 text-green-600" />
             </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">Litiges Actifs</p>
-          </dt>
-          <dd className="ml-16 flex flex-col">
-            <p className="text-2xl font-semibold text-gray-900">{stats.activeDisputes}</p>
-            <div className="flex items-baseline">
-              <p className="text-sm font-semibold text-red-600">
-                {stats.disputesGrowth > 0 && '+'}{stats.disputesGrowth}
-              </p>
+            <div className="ml-4">
+              <h2 className="text-lg font-semibold text-gray-900">Performance par pays</h2>
+              <p className="text-sm text-gray-500">Mois en cours</p>
             </div>
-          </dd>
-        </div>
-
-        {/* Nouveaux clients */}
-        <div className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6">
-          <dt>
-            <div className="absolute rounded-md bg-purple-100 p-3">
-              <UsersIcon className="h-6 w-6 text-purple-600" aria-hidden="true" />
-            </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">Nouveaux Clients</p>
-          </dt>
-          <dd className="ml-16 flex flex-col">
-            <p className="text-2xl font-semibold text-gray-900">{stats.newClients}</p>
-            <div className="flex items-baseline">
-              <p className="text-sm font-semibold text-green-600">
-                +{stats.clientsGrowth}%
-              </p>
-            </div>
-          </dd>
-        </div>
-      </div>
-
-      {/* Performance par pays */}
-      <div className="mt-8">
-        <h2 className="text-base font-semibold leading-6 text-gray-900">Performance par pays</h2>
-        <p className="mt-2 text-sm text-gray-700">Mois en cours</p>
-        <div className="mt-4">
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Pays</th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Colis</th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Chiffre d'affaires</th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Croissance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {stats.countryPerformance.map((country) => (
-                  <tr key={country.country}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {country.country}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {country.count} colis
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {formatCurrency(country.revenue)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        parseFloat(country.growth) >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {country.growth >= 0 ? '+' : ''}{country.growth}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          </div>
+          <div className="space-y-6">
+            {countryData.length > 0 ? (
+              countryData.map((country) => (
+                <div key={country.country} className="flex items-center">
+                  <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-sm font-medium">{country.country.substring(0, 2).toUpperCase()}</span>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-medium text-gray-900">{country.country}</h3>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-500">
+                          Réalisé: {country.completedRevenue.toLocaleString()} F CFA
+                        </span>
+                        <span className={`text-sm font-medium ${country.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {country.growth >= 0 ? '+' : ''}{country.growth.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>{country.parcels} colis</span>
+                      <span>{country.revenue.toLocaleString()} F CFA</span>
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-600 h-2 rounded-full"
+                        style={{
+                          width: `${Math.min(100, (country.revenue / Math.max(...countryData.map(c => c.revenue || 0))) * 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500">
+                Aucune donnée disponible
+              </div>
+            )}
           </div>
         </div>
       </div>

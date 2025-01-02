@@ -6,6 +6,24 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '375px',    // iPhone SE
+        'sm': '640px',    // Petits téléphones
+        'md': '768px',    // Tablettes
+        'lg': '1024px',   // Ordinateurs portables
+        'xl': '1280px',   // Grands écrans
+        '2xl': '1536px',  // Très grands écrans
+      },
+      spacing: {
+        '18': '4.5rem',
+        '22': '5.5rem',
+      },
+      minHeight: {
+        'screen-75': '75vh',
+      },
+      fontSize: {
+        'xxs': '0.625rem',
+      },
       colors: {
         primary: {
           50: '#f0f9ff',
@@ -33,9 +51,21 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter var', 'sans-serif'],
+        sans: [
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif'
+        ],
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/forms'),
+  ],
 }

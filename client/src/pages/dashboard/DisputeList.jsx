@@ -1,256 +1,320 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
-import {
-  ChevronRightIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline'
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../config/supabaseClient';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
+import SearchBar from '../../components/SearchBar';
+import toast from 'react-hot-toast';
+import { MagnifyingGlassIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
-const ITEMS_PER_PAGE = 10
+export default function DisputeList() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [disputes, setDisputes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  // Initialiser searchQuery comme une chaîne vide
+  const [searchQuery, setSearchQuery] = useState('');
 
-const disputeStatusColors = {
-  open: 'bg-yellow-50 text-yellow-700 ring-yellow-600/20',
-  in_progress: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-  resolved: 'bg-green-50 text-green-700 ring-green-600/20',
-  closed: 'bg-gray-50 text-gray-700 ring-gray-600/20',
-}
+  useEffect(() => {
+    if (user) {
+      fetchDisputes();
+    }
+  }, [user]);
 
-const disputeStatusLabels = {
-  open: 'Ouvert',
-  in_progress: 'En cours',
-  resolved: 'Résolu',
-  closed: 'Fermé',
-}
+  // Fonction utilitaire pour convertir en chaîne de manière sécurisée
+  const safeString = (value) => {
+    if (value === null || value === undefined) return '';
+    return String(value).toLowerCase();
+  };
 
-export function DisputeList() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  // Gestionnaire de recherche sécurisé
+  const handleSearch = (e) => {
+    // S'assurer que la valeur est toujours une chaîne
+    const newValue = e?.target?.value ?? '';
+    setSearchQuery(newValue);
+  };
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['disputes', searchTerm, currentPage],
-    queryFn: async () => {
-      let query = supabase
+  // Fonction de filtrage sécurisée
+  const getFilteredDisputes = () => {
+    if (!Array.isArray(disputes)) return [];
+    
+    // Convertir searchQuery en chaîne de manière sécurisée
+    const search = safeString(searchQuery);
+    
+    // Si la recherche est vide, retourner tous les litiges
+    if (!search) return disputes;
+
+    return disputes.filter(dispute => {
+      // Vérifier si le litige existe
+      if (!dispute) return false;
+
+      // Récupérer l'objet parcel de manière sécurisée
+      const parcel = dispute.parcel ?? {};
+
+      // Convertir toutes les valeurs en chaînes de manière sécurisée
+      const trackingNumber = safeString(parcel.tracking_number);
+      const recipientName = safeString(parcel.recipient_name);
+      const description = safeString(dispute.description);
+      const status = safeString(dispute.status);
+      const priority = safeString(dispute.priority);
+
+      // Vérifier si l'un des champs contient le terme de recherche
+      return (
+        trackingNumber.includes(search) ||
+        recipientName.includes(search) ||
+        description.includes(search) ||
+        status.includes(search) ||
+        priority.includes(search)
+      );
+    });
+  };
+
+  // Obtenir les litiges filtrés
+  const filteredDisputes = getFilteredDisputes();
+
+  const fetchDisputes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: disputes, error: disputesError } = await supabase
         .from('disputes')
         .select(`
           *,
-          parcels (
+          parcel:parcels (
             id,
             tracking_number,
-            sender_name,
-            receiver_name
-          ),
-          profiles:created_by (
-            first_name,
-            last_name
+            recipient_name,
+            destination,
+            status,
+            destination_country,
+            instructions,
+            special_instructions
           )
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
+        `)
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false });
 
-      if (searchTerm) {
-        query = query.or(
-          `parcels.tracking_number.ilike.%${searchTerm}%,parcels.sender_name.ilike.%${searchTerm}%,parcels.receiver_name.ilike.%${searchTerm}%`
-        )
-      }
+      if (disputesError) throw disputesError;
 
-      const { data, error, count } = await query
+      // S'assurer que disputes est un tableau
+      const formattedDisputes = Array.isArray(disputes) ? disputes.map(dispute => ({
+        ...dispute,
+        parcel: dispute.parcel ?? {},
+        tracking_number: dispute.parcel?.tracking_number ?? 'N/A',
+        recipient_name: dispute.parcel?.recipient_name ?? 'N/A',
+        destination: dispute.parcel?.destination ?? 'N/A',
+        destination_country: dispute.parcel?.destination_country ?? 'N/A',
+        instructions: dispute.parcel?.instructions ?? 'Aucune instruction',
+        special_instructions: dispute.parcel?.special_instructions ?? 'Aucune instruction spéciale'
+      })) : [];
 
-      if (error) throw error
+      setDisputes(formattedDisputes);
+    } catch (error) {
+      console.error('Erreur:', error);
+      setError(error.message);
+      toast.error('Erreur lors du chargement des litiges');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      return { disputes: data, total: count }
-    },
-  })
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Résolu':
+        return <CheckCircleIcon className="inline-block h-5 w-5 text-green-500 ml-2" />;
+      case 'En cours':
+        return <ClockIcon className="inline-block h-5 w-5 text-yellow-500 ml-2" />;
+      default:
+        return <ClockIcon className="inline-block h-5 w-5 text-orange-500 ml-2" />;
+    }
+  };
 
-  const totalPages = data ? Math.ceil(data.total / ITEMS_PER_PAGE) : 0
+  const handleStatusChange = async (disputeId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('disputes')
+        .update({ status: newStatus })
+        .eq('id', disputeId);
+
+      if (error) throw error;
+      
+      fetchDisputes();
+      toast.success('Statut mis à jour avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      toast.error('Erreur lors de la mise à jour du statut');
+    }
+  };
+
+  const handlePriorityChange = async (disputeId, newPriority) => {
+    try {
+      const { error } = await supabase
+        .from('disputes')
+        .update({ priority: newPriority })
+        .eq('id', disputeId);
+
+      if (error) throw error;
+      
+      fetchDisputes();
+      toast.success('Priorité mise à jour avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la priorité:', error);
+      toast.error('Erreur lors de la mise à jour de la priorité');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="text-center text-red-600">
-        Une erreur est survenue lors du chargement des litiges
+      <div className="rounded-md bg-red-50 p-4 m-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">
+              Erreur lors du chargement des litiges
+            </h3>
+            <div className="mt-2 text-sm text-red-700">
+              <p>{error}</p>
+            </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={fetchDisputes}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="sm:flex sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-base font-semibold leading-7 text-gray-900">
-            Litiges
-          </h1>
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            Liste des litiges en cours et résolus
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="sm:flex sm:items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-xl font-semibold text-gray-900">Litiges</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Liste des colis en litige et suivi des dossiers
           </p>
         </div>
       </div>
 
-      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <form className="flex flex-1" onSubmit={(e) => e.preventDefault()}>
-          <label htmlFor="search-field" className="sr-only">
-            Rechercher
-          </label>
-          <div className="relative w-full">
-            <MagnifyingGlassIcon
-              className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
-              aria-hidden="true"
-            />
-            <input
-              id="search-field"
-              className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-              placeholder="Rechercher par numéro de suivi, expéditeur ou destinataire..."
-              type="search"
-              name="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </form>
+      <div className="mt-4">
+        <SearchBar
+          value={searchQuery}
+          onChange={handleSearch}
+          placeholder="Rechercher par N° de suivi, destinataire, description..."
+          className="max-w-md"
+        />
       </div>
 
       <div className="mt-8 flow-root">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-300">
+              <thead>
+                <tr>
+                  <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                    Colis
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Destinataire
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Priorité
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Statut
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Description
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Date de création
+                  </th>
+                  <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredDisputes.length === 0 ? (
                   <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Colis
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Type
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Statut
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Créé par
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Date
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
+                    <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
+                      Aucun litige trouvé
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-4">
-                        Chargement...
+                ) : (
+                  filteredDisputes.map((dispute) => (
+                    <tr key={dispute.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                        {dispute.tracking_number}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {dispute.recipient_name}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <select
+                          value={dispute.priority || 'Faible'}
+                          onChange={(e) => handlePriorityChange(dispute.id, e.target.value)}
+                          className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                        >
+                          <option value="Faible">Faible</option>
+                          <option value="Moyenne">Moyenne</option>
+                          <option value="Haute">Haute</option>
+                        </select>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <select
+                          value={dispute.status}
+                          onChange={(e) => handleStatusChange(dispute.id, e.target.value)}
+                          className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                        >
+                          <option value="En attente">En attente</option>
+                          <option value="En cours">En cours</option>
+                          <option value="Résolu">Résolu</option>
+                        </select>
+                        {getStatusIcon(dispute.status)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {dispute.description || 'Litige créé automatiquement suite au changement de statut du colis'}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {format(new Date(dispute.created_at), 'dd MMMM yyyy', { locale: fr })}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                        <button
+                          onClick={() => navigate(`/dashboard/disputes/${dispute.id}`)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Voir les détails
+                        </button>
                       </td>
                     </tr>
-                  ) : (
-                    data?.disputes.map((dispute) => (
-                      <tr key={dispute.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          <div>N° {dispute.parcels.tracking_number}</div>
-                          <div className="text-gray-500">
-                            {dispute.parcels.sender_name} → {dispute.parcels.receiver_name}
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {dispute.type}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <span
-                            className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                              disputeStatusColors[dispute.status]
-                            }`}
-                          >
-                            {disputeStatusLabels[dispute.status]}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {dispute.profiles.first_name} {dispute.profiles.last_name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(dispute.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <Link
-                            to={`/disputes/${dispute.id}`}
-                            className="text-primary-600 hover:text-primary-900"
-                          >
-                            Détails
-                            <ChevronRightIcon className="inline-block w-4 h-4 ml-1" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-          <div className="flex flex-1 justify-between sm:hidden">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Précédent
-            </button>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Suivant
-            </button>
-          </div>
-          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Affichage de{' '}
-                <span className="font-medium">
-                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}
-                </span>{' '}
-                à{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * ITEMS_PER_PAGE, data?.total)}
-                </span>{' '}
-                sur <span className="font-medium">{data?.total}</span> résultats
-              </p>
-            </div>
-            <div>
-              <nav
-                className="isolate inline-flex -space-x-px rounded-md shadow-sm"
-                aria-label="Pagination"
-              >
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
-                >
-                  <span className="sr-only">Précédent</span>
-                  <ChevronRightIcon className="h-5 w-5 rotate-180" aria-hidden="true" />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
-                >
-                  <span className="sr-only">Suivant</span>
-                  <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  )
+  );
 }

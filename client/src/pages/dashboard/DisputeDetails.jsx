@@ -48,7 +48,13 @@ export function DisputeDetails() {
             tracking_number,
             sender_name,
             receiver_name,
-            status
+            status,
+            destination,
+            destination_country,
+            instructions,
+            special_instructions,
+            created_at,
+            updated_at
           ),
           profiles:created_by (
             first_name,
@@ -244,6 +250,42 @@ export function DisputeDetails() {
                 <dt className="text-sm font-medium text-gray-500">Destinataire</dt>
                 <dd className="mt-1 text-sm text-gray-900">
                   {dispute.parcels.receiver_name}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Destination</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.destination}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Pays de destination</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.destination_country}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Instructions</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.instructions || 'Aucune instruction'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Instructions spéciales</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.special_instructions || 'Aucune instruction spéciale'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Date de création du colis</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.created_at ? format(new Date(dispute.parcels.created_at), 'dd MMMM yyyy', { locale: fr }) : 'N/A'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Dernière mise à jour du colis</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {dispute.parcels.updated_at ? format(new Date(dispute.parcels.updated_at), 'dd MMMM yyyy', { locale: fr }) : 'N/A'}
                 </dd>
               </div>
             </dl>
