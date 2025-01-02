@@ -220,7 +220,7 @@ const InvoicePDF = ({ data }) => {
           <View style={styles.headerContent}>
             <View style={styles.logoContainer}>
               <Image 
-                src="https://i.imgur.com/ZU2ZGQk.png"
+                src="/twinsk-logo.png"
                 style={styles.logo}
               />
             </View>
