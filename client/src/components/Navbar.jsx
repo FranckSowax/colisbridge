@@ -4,6 +4,7 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
+import NotificationBell from './NotificationBell';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -63,6 +64,10 @@ export default function Navbar({ navigation: nav = navigation, userNavigation })
               </div>
 
               <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                {/* Notification Bell */}
+                <NotificationBell />
+
+                {/* Profile dropdown */}
                 <Menu as="div" className="relative ml-3">
                   <div>
                     <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">

@@ -10,6 +10,7 @@ import { useCreateParcel } from '../hooks/useCreateParcel';
 import { useRecipients } from '../hooks/useRecipients';
 import { useCreateRecipient } from '../hooks/useCreateRecipient';
 import { useCalculatePrice } from '../hooks/useCalculatePrice';
+import { notificationService } from '../services/notificationService';
 
 const SHIPPING_TYPES = [
   { id: 'standard', name: 'standard' },
@@ -187,10 +188,19 @@ export default function NewParcelForm({ isOpen, onClose }) {
         status: 'reçu'
       };
 
-      await createParcelMutation.mutateAsync(parcelData);
+      const data = await createParcelMutation.mutateAsync(parcelData);
       
-      toast.success(t('parcels.form.success'));
-      onClose();
+      if (data) {
+        // Créer une notification pour le nouveau colis
+        await notificationService.notifyParcelCreated(
+          1, // user.id
+          data.id,
+          data.tracking_number
+        );
+        
+        toast.success(t('parcels.form.success'));
+        onClose();
+      }
     } catch (error) {
       console.error(t('parcels.form.errors.parcelCreation'), error);
       toast.error(t('parcels.form.errors.parcelCreation'));
