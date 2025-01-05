@@ -451,11 +451,74 @@ export default function ParcelList() {
   }
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Bienvenue, {user?.email}</h1>
-        
-        {/* Liste des colis récents */}
+    <div className="overflow-hidden">
+      {/* Filtres mobiles */}
+      <div className="block sm:hidden p-4 bg-gray-50 border-b">
+        <select
+          value={searchType}
+          onChange={(e) => setSearchType(e.target.value)}
+          className="w-full p-2 border rounded-lg mb-2"
+        >
+          <option value="tracking">N° de suivi</option>
+          <option value="recipient">Destinataire</option>
+        </select>
+      </div>
+
+      {/* Liste pour mobile */}
+      <div className="block sm:hidden">
+        <div className="divide-y divide-gray-200">
+          {parcels.map((parcel) => (
+            <div key={parcel.id} className="p-4 bg-white">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+                  </div>
+                  <div className="mt-1">
+                    <div className="text-gray-900">{parcel.tracking_number}</div>
+                    <div className="text-gray-500 text-xs mt-1">{parcel.recipient_name}</div>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEdit(parcel)}
+                    className="p-2 text-indigo-600 hover:text-indigo-900"
+                  >
+                    <EllipsisHorizontalIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(parcel)}
+                    className="p-2 text-red-600 hover:text-red-900"
+                  >
+                    <EllipsisHorizontalIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 text-sm text-gray-500">
+                <div className="flex justify-between">
+                  <span>Pays:</span>
+                  <span className="font-medium">{getCountryFlag(parcel.country)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Type d'envoi:</span>
+                  <span>{parcel.shipping_type}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Poids:</span>
+                  <span>{parcel.weight} kg</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Statut:</span>
+                  <span className={`font-medium ${getStatusColor(parcel.status)}`}>{getStatusLabel(parcel.status)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tableau pour desktop */}
+      <div className="hidden sm:block">
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
           {renderSearchSection()}
@@ -490,7 +553,7 @@ export default function ParcelList() {
                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                           Prix Total
                         </th>
-                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                           <span className="sr-only">Actions</span>
                         </th>
                       </tr>

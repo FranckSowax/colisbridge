@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../config/supabaseClient';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@contexts/AuthContext';
 
 export function useCreateParcel() {
   const { user } = useAuth();
@@ -25,7 +25,7 @@ export function useCreateParcel() {
           p_shipping_type: formData.shipping_type || 'Standard',
           p_weight: formData.weight ? Number(formData.weight) : 0,
           p_dimensions: formData.dimensions || null,
-          p_description: formData.special_instructions || null,
+          p_description: formData.instructions || null,
           p_client_id: formData.client_id || null,
           p_client_reference: formData.client_reference || null
         });

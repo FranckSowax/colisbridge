@@ -17,9 +17,12 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3002,
-    host: true,
+    port: 3003,
     strictPort: true,
+    watch: {
+      usePolling: true
+    },
+    hmr: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -34,8 +37,7 @@ export default defineConfig({
     }
   },
   preview: {
-    port: 3002,
-    host: true
+    port: 3003
   },
   build: {
     outDir: 'dist',

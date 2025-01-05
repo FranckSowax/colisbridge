@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { PhotoIcon, PlusIcon } from '@heroicons/react/24/solid';
@@ -50,6 +50,13 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
         </div>
       </Dialog>
     );
+  }
+
+  // Vérifier si l'utilisateur est connecté
+  if (!user) {
+    toast.error(t('auth.errors.notAuthenticated'));
+    onClose();
+    return null;
   }
 
   const [formData, setFormData] = useState({
@@ -106,19 +113,58 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
                recipient.phone.includes(query);
       });
 
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        recipient_id: '',
+        recipient_name: '',
+        recipient_phone: '',
+        recipient_email: '',
+        recipient_address: '',
+        country: 'france',
+        city: '',
+        postal_code: '',
+        shipping_type: 'Standard',
+        weight: '',
+        dimensions: '',
+        special_instructions: '',
+        photos: [],
+        client_id: null,
+        client_reference: null
+      });
+      setQuery('');
+      setIsNewRecipient(false);
+      setNewRecipient({
+        name: '',
+        email: '',
+        phone: '',
+        address: ''
+      });
+      setPhotoPreview([]);
+      setPhotos([]);
+    }
+  }, [isOpen]);
+
   const handleInputChange = async (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    if (['country', 'shipping_type', 'weight', 'cbm'].includes(name)) {
-      const newFormData = {
-        ...formData,
+    setFormData(prevData => {
+      const newData = {
+        ...prevData,
         [name]: value
       };
+      
+      // Si c'est un champ du destinataire, mettre à jour également les champs correspondants
+      if (name === 'recipient_name' || name === 'recipient_email' || name === 'recipient_phone' || name === 'recipient_address') {
+        setNewRecipient(prev => ({
+          ...prev,
+          [name.replace('recipient_', '')]: value
+        }));
+      }
+      
+      return newData;
+    });
 
+    if (['country', 'shipping_type', 'weight', 'cbm'].includes(name)) {
       await refetchPrice();
     }
   };
@@ -167,6 +213,7 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const validateForm = () => {
+    // Validation du poids selon le type d'expédition
     if (formData.shipping_type === 'Maritime' && !formData.cbm) {
       toast.error(t('parcels.form.errors.cbmRequired'));
       return false;
@@ -175,6 +222,13 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
       toast.error(t('parcels.form.errors.weightRequired'));
       return false;
     }
+
+    // Validation des informations du destinataire
+    if (!formData.recipient_name || !formData.recipient_phone) {
+      toast.error(t('parcels.form.errors.recipientRequired'));
+      return false;
+    }
+
     return true;
   };
 
@@ -182,6 +236,12 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
     e.preventDefault();
     
     try {
+      // Vérifier à nouveau l'authentification
+      if (!user) {
+        toast.error(t('auth.errors.notAuthenticated'));
+        return;
+      }
+
       if (!priceData || !priceData.total) {
         toast.error(t('parcels.form.errors.priceCalculation'));
         return;
@@ -189,58 +249,26 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
 
       if (!validateForm()) return;
 
-      let recipientId = formData.recipient_id;
-      let recipientData = {};
-
-      if (isNewRecipient) {
-        const newRecipientData = await createRecipientMutation.mutateAsync({
-          name: newRecipient.name,
-          email: newRecipient.email,
-          phone: newRecipient.phone,
-          address: newRecipient.address
-        });
-        
-        if (!newRecipientData?.id) {
-          throw new Error(t('parcels.form.errors.recipientCreation'));
-        }
-        
-        recipientId = newRecipientData.id;
-        recipientData = newRecipient;
-      } else if (!recipientId || recipientId === 'new') {
-        throw new Error(t('parcels.form.errors.recipientSelection'));
-      } else {
-        // Utiliser les données du destinataire sélectionné
-        const selectedRecipient = recipients.find(r => r.id === recipientId);
-        if (selectedRecipient) {
-          recipientData = {
-            name: selectedRecipient.name,
-            email: selectedRecipient.email,
-            phone: selectedRecipient.phone,
-            address: selectedRecipient.address
-          };
-        }
-      }
-
+      // Préparer les données du destinataire
       const parcelData = {
         ...formData,
-        recipient_id: recipientId,
-        recipient_name: recipientData.name,
-        recipient_phone: recipientData.phone,
-        recipient_email: recipientData.email,
-        recipient_address: recipientData.address,
         shipping_type: formData.shipping_type,
         special_instructions: formData.special_instructions || null,
         dimensions: formData.dimensions || null,
-        weight: formData.weight ? Number(formData.weight) : 0
+        weight: formData.weight ? Number(formData.weight) : 0,
+        // Pour un nouveau destinataire, recipient_id sera null
+        recipient_id: formData.recipient_id === 'new' ? null : formData.recipient_id,
+        // Ajouter l'ID de l'utilisateur
+        created_by: user.id
       };
 
       const data = await createParcelMutation.mutateAsync(parcelData);
       
-      if (data) {
+      if (data && data[0]) {  
         // Télécharger les photos
         if (photos.length > 0) {
           const uploadPromises = photos.map(photo => 
-            photoService.uploadParcelPhoto(photo, data.parcel_id)
+            photoService.uploadParcelPhoto(photo, data[0].parcel_id)
           );
           await Promise.all(uploadPromises);
         }
@@ -248,16 +276,21 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
         // Créer une notification pour le nouveau colis
         await notificationService.notifyParcelCreated(
           user.id,
-          data.parcel_id,
-          data.tracking_number
+          data[0].parcel_id,
+          data[0].tracking_number
         );
         
         toast.success(t('parcels.form.success'));
         onClose();
+        if (onSuccess) onSuccess();
       }
     } catch (error) {
-      console.error(t('parcels.form.errors.parcelCreation'), error);
-      toast.error(t('parcels.form.errors.parcelCreation'));
+      console.error('Error creating parcel:', error);
+      if (error.message === 'Vous devez être connecté pour créer un colis') {
+        toast.error(t('auth.errors.notAuthenticated'));
+      } else {
+        toast.error(t('parcels.form.errors.parcelCreation'));
+      }
     }
   };
 
@@ -311,16 +344,38 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
                   <form onSubmit={handleSubmit} className="mt-6 space-y-6">
                     <div>
                       <label className="text-sm font-medium text-gray-700">
-                        {t('parcels.form.recipient.select')}
+                        {t('parcels.form.recipient.search')}
                       </label>
-                      <Combobox value={formData.recipient_id} onChange={(value) => {
-                        if (value === 'new') {
-                          setIsNewRecipient(true);
-                        } else {
-                          setIsNewRecipient(false);
-                          setFormData(prev => ({ ...prev, recipient_id: value }));
-                        }
-                      }}>
+                      <Combobox
+                        as="div"
+                        value={formData.recipient_id}
+                        onChange={(recipientId) => {
+                          if (recipientId === 'new') {
+                            setIsNewRecipient(true);
+                            setFormData(prev => ({
+                              ...prev,
+                              recipient_id: recipientId,
+                              recipient_name: '',
+                              recipient_email: '',
+                              recipient_phone: '',
+                              recipient_address: ''
+                            }));
+                          } else {
+                            const selectedRecipient = recipients.find(r => r.id === recipientId);
+                            setIsNewRecipient(false);
+                            if (selectedRecipient) {
+                              setFormData(prev => ({
+                                ...prev,
+                                recipient_id: recipientId,
+                                recipient_name: selectedRecipient.name,
+                                recipient_email: selectedRecipient.email,
+                                recipient_phone: selectedRecipient.phone,
+                                recipient_address: selectedRecipient.address
+                              }));
+                            }
+                          }
+                        }}
+                      >
                         <div className="relative mt-1">
                           <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm">
                             <Combobox.Input
@@ -359,65 +414,86 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
                       </Combobox>
                     </div>
 
-                    {isNewRecipient && (
-                      <div className="space-y-4">
-                        <div>
-                          <label htmlFor="recipientName" className="block text-sm font-medium text-gray-700">
-                            {t('parcels.form.recipientName')}
-                          </label>
+                    <div className="space-y-4">
+                      <div className="mt-4">
+                        <label
+                          htmlFor="recipient_name"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Nom du destinataire
+                        </label>
+                        <div className="mt-1">
                           <input
                             type="text"
-                            name="recipientName"
-                            id="recipientName"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            value={newRecipient.name}
-                            onChange={handleNewRecipientChange}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="recipientEmail" className="block text-sm font-medium text-gray-700">
-                            {t('parcels.form.recipientEmail')}
-                          </label>
-                          <input
-                            type="email"
-                            name="recipientEmail"
-                            id="recipientEmail"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            value={newRecipient.email}
-                            onChange={handleNewRecipientChange}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="recipientPhone" className="block text-sm font-medium text-gray-700">
-                            {t('parcels.form.recipientPhone')}
-                          </label>
-                          <input
-                            type="tel"
-                            name="recipientPhone"
-                            id="recipientPhone"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            value={newRecipient.phone}
-                            onChange={handleNewRecipientChange}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="recipientAddress" className="block text-sm font-medium text-gray-700">
-                            {t('parcels.form.recipientAddress')}
-                          </label>
-                          <input
-                            type="text"
-                            name="recipientAddress"
-                            id="recipientAddress"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            value={newRecipient.address}
-                            onChange={handleNewRecipientChange}
+                            name="recipient_name"
+                            id="recipient_name"
+                            required
+                            value={formData.recipient_name}
+                            onChange={handleInputChange}
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
                           />
                         </div>
                       </div>
-                    )}
+
+                      <div className="mt-4">
+                        <label
+                          htmlFor="recipient_email"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Email
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            type="email"
+                            name="recipient_email"
+                            id="recipient_email"
+                            value={formData.recipient_email}
+                            onChange={handleInputChange}
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label
+                          htmlFor="recipient_phone"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Téléphone
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            type="tel"
+                            name="recipient_phone"
+                            id="recipient_phone"
+                            required
+                            value={formData.recipient_phone}
+                            onChange={handleInputChange}
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label
+                          htmlFor="recipient_address"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Adresse
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            type="text"
+                            name="recipient_address"
+                            id="recipient_address"
+                            required
+                            value={formData.recipient_address}
+                            onChange={handleInputChange}
+                            className="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
                       <div>

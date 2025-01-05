@@ -28,7 +28,7 @@ export default function ParcelDetailsModal({ isOpen, onClose, parcel }) {
             const { data: { publicUrl }} = supabase
               .storage
               .from('parcel-photos')
-              .getPublicUrl(photo.photo_path);
+              .getPublicUrl(photo.file_path);
             
             return {
               id: photo.id,

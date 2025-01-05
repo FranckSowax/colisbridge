@@ -41,7 +41,12 @@
     "form": {
       "title": "Nouveau colis",
       "close": "Fermer",
-      "recipient": "Destinataire",
+      "recipient": {
+        "name": "Nom du destinataire",
+        "email": "Email",
+        "phone": "Téléphone",
+        "address": "Adresse"
+      },
       "newRecipient": "Nouveau destinataire",
       "recipientName": "Nom complet",
       "recipientPhone": "Téléphone",
