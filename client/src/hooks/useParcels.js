@@ -27,9 +27,9 @@ export function useParcels(userId) {
     const searchFields = [
       parcel.tracking_number,
       parcel.recipient_name,
-      parcel.recipient?.phone,
+      parcel.recipient_phone,
       parcel.destination_country,
-      parcel.recipient?.address
+      parcel.destination_address
     ];
 
     return searchFields.some(field => 
@@ -75,33 +75,55 @@ export function useParcels(userId) {
     }
   };
 
-  // Mise à jour du statut
-  const { mutate: updateStatus } = useMutation({
-    mutationFn: async ({ parcelId, newStatus, updateData }) => {
-      const result = await parcelService.updateParcelStatus(parcelId, newStatus, updateData);
+  // Mutation pour la mise à jour du statut
+  const updateParcelStatus = useMutation({
+    mutationFn: async ({ parcelId, status, updateData }) => {
+      const { data, error } = await supabase
+        .from('parcels')
+        .update({ 
+          status,
+          sent_date: status === 'expedie' ? new Date().toISOString() : null,
+          delivered_date: status === 'termine' ? new Date().toISOString() : null,
+          ...updateData
+        })
+        .eq('id', parcelId)
+        .select()
+        .single();
+
+      if (error) throw error;
       // Mettre à jour les statistiques si nécessaire
-      if (newStatus === 'termine') {
-        await updateStatistics(result);
+      if (status === 'termine') {
+        await updateStatistics(data);
       }
-      return result;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['parcels', userId]);
+      toast.success('Statut mis à jour avec succès');
     },
     onError: (error) => {
-      toast.error(`Erreur lors de la mise à jour: ${error.message}`);
+      console.error('Error updating parcel status:', error);
+      toast.error('Erreur lors de la mise à jour du statut');
     },
   });
 
-  // Suppression d'un colis
-  const { mutate: deleteParcel } = useMutation({
-    mutationFn: (parcelId) => parcelService.deleteParcel(parcelId),
+  // Mutation pour la suppression
+  const deleteParcel = useMutation({
+    mutationFn: async (parcelId) => {
+      const { error } = await supabase
+        .from('parcels')
+        .delete()
+        .eq('id', parcelId);
+
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['parcels', userId]);
       toast.success('Colis supprimé avec succès');
     },
     onError: (error) => {
-      toast.error(`Erreur lors de la suppression: ${error.message}`);
+      console.error('Error deleting parcel:', error);
+      toast.error('Erreur lors de la suppression du colis');
     },
   });
 
@@ -113,8 +135,8 @@ export function useParcels(userId) {
     parcels,
     isLoading,
     error,
-    deleteParcel,
-    updateStatus,
+    updateParcelStatus: (parcelId, status, updateData) => updateParcelStatus.mutate({ parcelId, status, updateData }),
+    deleteParcel: (parcelId) => deleteParcel.mutate(parcelId),
     searchQuery,
     handleSearch,
   };

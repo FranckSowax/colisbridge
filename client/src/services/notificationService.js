@@ -6,20 +6,16 @@ export const notificationService = {
     title,
     message,
     type,
-    referenceId = null,
-    referenceType = null,
+    parcelId = null
   }) {
     try {
-      const { data, error } = await supabase.from('notifications').insert([
-        {
-          user_id: userId,
-          title,
-          message,
-          type,
-          reference_id: referenceId,
-          reference_type: referenceType,
-        },
-      ]);
+      const { data, error } = await supabase.rpc('create_notification', {
+        p_type: type,
+        p_title: title,
+        p_message: message,
+        p_user_id: userId,
+        p_parcel_id: parcelId
+      });
 
       if (error) throw error;
       return data;
@@ -36,8 +32,7 @@ export const notificationService = {
       title: 'Nouveau colis créé',
       message: `Un nouveau colis avec le numéro de suivi ${trackingNumber} a été créé.`,
       type: 'parcel_created',
-      referenceId: parcelId,
-      referenceType: 'parcel',
+      parcelId
     });
   },
 
@@ -46,31 +41,28 @@ export const notificationService = {
       userId,
       title: 'Statut mis à jour',
       message: `Le statut du colis ${trackingNumber} a été mis à jour vers "${newStatus}".`,
-      type: 'status_updated',
-      referenceId: parcelId,
-      referenceType: 'parcel',
+      type: 'parcel_updated',
+      parcelId
     });
   },
 
-  async notifyDisputeCreated(userId, disputeId, trackingNumber) {
+  async notifyDisputeCreated(userId, parcelId, trackingNumber) {
     return this.createNotification({
       userId,
-      title: 'Nouveau litige créé',
-      message: `Un nouveau litige a été créé pour le colis ${trackingNumber}.`,
-      type: 'dispute_created',
-      referenceId: disputeId,
-      referenceType: 'dispute',
+      title: 'Litige ouvert',
+      message: `Un litige a été ouvert pour le colis ${trackingNumber}.`,
+      type: 'dispute_opened',
+      parcelId
     });
   },
 
-  async notifyDisputeResolved(userId, disputeId, trackingNumber) {
+  async notifyDisputeResolved(userId, parcelId, trackingNumber) {
     return this.createNotification({
       userId,
       title: 'Litige résolu',
       message: `Le litige pour le colis ${trackingNumber} a été résolu.`,
       type: 'dispute_resolved',
-      referenceId: disputeId,
-      referenceType: 'dispute',
+      parcelId
     });
-  },
+  }
 };

@@ -24,6 +24,21 @@ export default {
       fontSize: {
         'xxs': '0.625rem',
       },
+      fontFamily: {
+        sans: [
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          'Oxygen',
+          'Ubuntu',
+          'Cantarell',
+          '"Open Sans"',
+          '"Helvetica Neue"',
+          'sans-serif',
+        ],
+      },
       colors: {
         primary: {
           50: '#f0f9ff',
@@ -49,19 +64,6 @@ export default {
           800: '#166534',
           900: '#14532d',
         }
-      },
-      fontFamily: {
-        sans: [
-          'ui-sans-serif',
-          'system-ui',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'Segoe UI',
-          'Roboto',
-          'Helvetica Neue',
-          'Arial',
-          'sans-serif'
-        ],
       },
     },
   },

@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../../config/supabaseClient';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import { photoService } from '../../services/photoService';
 
 const parcelStatuses = {
   recu: { name: 'Reçu', color: 'bg-yellow-100 text-yellow-800' },
@@ -17,10 +19,14 @@ const parcelStatuses = {
 export default function ParcelDetails({ open, setOpen, parcel }) {
   const [loading, setLoading] = useState(false);
 
-  if (!parcel) return null;
+  // Charger les photos avec React Query
+  const { data: photos = [], isLoading: photosLoading } = useQuery({
+    queryKey: ['parcel-photos', parcel?.id],
+    queryFn: () => photoService.getParcelPhotos(parcel.id),
+    enabled: !!parcel?.id && open
+  });
 
-  // Récupérer les photos depuis photo_urls
-  const photos = parcel.photo_urls || [];
+  if (!parcel) return null;
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -69,17 +75,21 @@ export default function ParcelDetails({ open, setOpen, parcel }) {
                     {/* Section photos */}
                     <div className="mb-6">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Photos du colis</h4>
-                      {photos.length > 0 ? (
+                      {photosLoading ? (
+                        <div className="flex justify-center items-center h-40 bg-gray-50 rounded-lg">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        </div>
+                      ) : photos.length > 0 ? (
                         <div className="grid grid-cols-2 gap-4">
-                          {photos.map((url, index) => (
-                            <div key={index} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100">
+                          {photos.map((photo) => (
+                            <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100">
                               <img
-                                src={url}
-                                alt={`Photo ${index + 1} du colis`}
+                                src={photo.url}
+                                alt={`Photo du colis`}
                                 className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => window.open(url, '_blank')}
+                                onClick={() => window.open(photo.url, '_blank')}
                                 onError={(e) => {
-                                  console.error('Error loading image:', url);
+                                  console.error('Error loading image:', photo.url);
                                   e.target.src = '/placeholder-image.jpg';
                                 }}
                               />
@@ -99,28 +109,33 @@ export default function ParcelDetails({ open, setOpen, parcel }) {
                       <div className="rounded-lg bg-gray-50 p-4">
                         <p className="text-sm text-gray-900">{parcel.recipient_name}</p>
                         <p className="text-sm text-gray-500">{parcel.recipient_phone}</p>
-                        <p className="text-sm text-gray-500">{parcel.recipient_address}</p>
+                        {parcel.recipient_email && (
+                          <p className="text-sm text-gray-500">{parcel.recipient_email}</p>
+                        )}
+                        {parcel.recipient_address && (
+                          <p className="text-sm text-gray-500 mt-1">{parcel.recipient_address}</p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Détails du colis */}
-                    <div className="grid grid-cols-2 gap-6 mb-6">
+                    {/* Autres détails du colis */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-2">Poids</h4>
-                        <p className="text-sm text-gray-900">{parcel.weight} kg</p>
+                        <p className="text-sm text-gray-500">{parcel.weight} kg</p>
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-2">Prix total</h4>
-                        <p className="text-sm text-gray-900">{parcel.total_amount || '-'}</p>
+                        <p className="text-sm text-gray-500">{parcel.total_price || '-'} €</p>
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-2">Pays de destination</h4>
-                        <p className="text-sm text-gray-900">{parcel.destination_country}</p>
+                        <p className="text-sm text-gray-500">{parcel.destination_country}</p>
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-2">Statut</h4>
-                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-medium ${parcelStatuses[parcel.status]?.color}`}>
-                          {parcelStatuses[parcel.status]?.name}
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${parcelStatuses[parcel.status]?.color}`}>
+                          {parcelStatuses[parcel.status]?.name || parcel.status}
                         </span>
                       </div>
                     </div>

@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { useAuth } from '../../context/AuthContext.jsx'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { signIn, user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -12,16 +13,27 @@ export default function Login() {
     password: '',
   })
 
+  // Rediriger si déjà connecté
+  useEffect(() => {
+    if (user) {
+      const from = location.state?.from?.pathname || '/dashboard'
+      navigate(from, { replace: true })
+    }
+  }, [user, navigate, location])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const { error } = await signIn(formData.email, formData.password)
+      const { error } = await signIn({
+        email: formData.email,
+        password: formData.password
+      })
       if (error) throw error
 
       toast.success('Connexion réussie !')
-      navigate('/dashboard')
+      // La redirection sera gérée par useEffect
     } catch (error) {
       toast.error('Erreur de connexion : ' + error.message)
       console.error('Error signing in:', error)

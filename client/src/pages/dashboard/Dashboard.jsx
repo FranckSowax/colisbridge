@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../config/supabaseClient';
-import { EnvelopeIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '@contexts/AuthContext';
+import { useLanguage } from '@contexts/LanguageContext';
+import { supabase } from '@/config/supabaseClient';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import NewParcelForm from '../../components/NewParcelForm';
-import MobileNavBar from '../../components/MobileNavBar';
-import QuickActions from '../../components/QuickActions';
-import { useSwipeable } from 'react-swipeable';
+import toast from 'react-hot-toast';
+import NewParcelForm from '@components/NewParcelForm';
+import { ErrorBoundary } from 'react-error-boundary';
 
 const STATUS_CARDS = [
   {
-    name: 'Reçus',
+    name: 'dashboard.status.recu',
     status: 'recu',
     icon: '📥',
     bgColor: 'bg-blue-50',
@@ -20,7 +20,7 @@ const STATUS_CARDS = [
     hoverColor: 'hover:bg-blue-100'
   },
   {
-    name: 'Expédiés',
+    name: 'dashboard.status.expedie',
     status: 'expedie',
     icon: '📤',
     bgColor: 'bg-indigo-50',
@@ -28,7 +28,7 @@ const STATUS_CARDS = [
     hoverColor: 'hover:bg-indigo-100'
   },
   {
-    name: 'Terminés',
+    name: 'dashboard.status.termine',
     status: 'termine',
     icon: '✅',
     bgColor: 'bg-green-50',
@@ -36,7 +36,7 @@ const STATUS_CARDS = [
     hoverColor: 'hover:bg-green-100'
   },
   {
-    name: 'En litige',
+    name: 'dashboard.status.litige',
     status: 'litige',
     icon: '⚠️',
     bgColor: 'bg-yellow-50',
@@ -45,252 +45,216 @@ const STATUS_CARDS = [
   }
 ];
 
-export default function Dashboard() {
+function ErrorFallback({ error, resetErrorBoundary }) {
+  const { t } = useLanguage();
+  return (
+    <div className="p-4 bg-red-50 rounded-lg" role="alert">
+      <h2 className="text-lg font-semibold text-red-800 mb-2">{t('errors.something_went_wrong')}</h2>
+      <pre className="text-sm text-red-700 mb-4">{error.message}</pre>
+      <button
+        onClick={resetErrorBoundary}
+        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+      >
+        {t('actions.try_again')}
+      </button>
+    </div>
+  );
+}
+
+const Dashboard = () => {
   const { user } = useAuth();
+  const { t, loading: langLoading } = useLanguage();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalParcels: 0,
-    statusCounts: {}
-  });
+  const [stats, setStats] = useState({});
   const [recentParcels, setRecentParcels] = useState([]);
-  const [isNewParcelFormOpen, setIsNewParcelFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Pull-to-refresh handler
-  const handlers = useSwipeable({
-    onSwipedDown: (eventData) => {
-      if (eventData.deltaY > 100) {
-        handleRefresh();
-      }
-    },
-    preventDefaultTouchmoveEvent: true,
-    trackMouse: false
-  });
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchDashboardData();
-    setTimeout(() => setRefreshing(false), 1000);
-  };
+  const [isNewParcelModalOpen, setIsNewParcelModalOpen] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!user) {
+          throw new Error(t('errors.not_authenticated'));
+        }
+
+        const { data: statsData, error: statsError } = await supabase
+          .from('parcels_view')
+          .select('status')
+          .eq('created_by', user.id);
+
+        if (statsError) throw statsError;
+
+        const calculatedStats = statsData.reduce((acc, parcel) => {
+          acc[parcel.status] = (acc[parcel.status] || 0) + 1;
+          return acc;
+        }, {});
+
+        setStats(calculatedStats);
+
+        const { data: parcelsData, error: parcelsError } = await supabase
+          .from('parcels_view')
+          .select('*')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (parcelsError) throw parcelsError;
+
+        setRecentParcels(parcelsData);
+      } catch (err) {
+        console.error('Erreur lors du chargement du tableau de bord:', err);
+        setError(err.message);
+        toast.error(t('errors.loading_failed'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!langLoading) {
       fetchDashboardData();
     }
-  }, [user]);
+  }, [user, t, langLoading]);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data: parcels, error: parcelsError } = await supabase
-        .from('parcels')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
-
-      if (parcelsError) throw parcelsError;
-
-      const statusCounts = parcels.reduce((acc, parcel) => {
-        acc[parcel.status] = (acc[parcel.status] || 0) + 1;
-        return acc;
-      }, {});
-
-      setStats({
-        totalParcels: parcels.length,
-        statusCounts
-      });
-
-      setRecentParcels(parcels.slice(0, 5));
-    } catch (error) {
-      console.error('Erreur:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleNewParcelSuccess = () => {
+    setIsNewParcelModalOpen(false);
+    toast.success(t('success.parcel_created'));
+    fetchDashboardData();
   };
 
-  if (loading) {
+  if (loading || langLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <p className="text-gray-600">{t('loading.dashboard_data')}</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 rounded-md bg-red-50 border border-red-200">
-        <p className="text-sm text-red-600">Erreur: {error}</p>
-        <button
-          onClick={fetchDashboardData}
-          className="mt-2 text-sm text-red-600 hover:text-red-500"
-        >
-          Réessayer
-        </button>
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">
+            {t('errors.dashboard_loading_failed')}
+          </h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            {t('actions.retry')}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" {...handlers}>
-      {/* Indicateur de rafraîchissement */}
-      {refreshing && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-primary-600 animate-pulse" />
-      )}
-
-      {/* Header fixe pour mobile */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">
-                Tableau de bord
-              </h1>
-              <p className="mt-1 text-sm text-gray-500 hidden sm:block">
-                Bienvenue, {user?.email}
-              </p>
-            </div>
-            <div className="hidden sm:block">
-              <button
-                onClick={() => setIsNewParcelFormOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                Nouveau Colis
-              </button>
-            </div>
-          </div>
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {t('dashboard.welcome')}, {user?.email}
+          </h1>
+          <button
+            onClick={() => setIsNewParcelModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+            {t('actions.create_parcel')}
+          </button>
         </div>
-      </div>
 
-      {/* Contenu principal */}
-      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 pb-20 sm:pb-6">
-        {/* Cartes de statistiques */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {/* Total des colis */}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <EnvelopeIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
-                </div>
-                <div className="ml-3 w-0 flex-1">
-                  <dl>
-                    <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total</dt>
-                    <dd className="text-lg sm:text-xl font-semibold text-gray-900">{stats.totalParcels}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-4 py-2">
-              <Link 
-                to="/dashboard/parcels" 
-                className="text-xs sm:text-sm font-medium text-primary-600 hover:text-primary-800"
-              >
-                Voir tous
-              </Link>
-            </div>
-          </div>
-
-          {/* Cartes de statut */}
+        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {STATUS_CARDS.map((card) => (
-            <div key={card.status} className={`rounded-lg shadow-sm overflow-hidden ${card.bgColor}`}>
-              <div className="p-4">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-xl sm:text-2xl" role="img" aria-label={card.name}>
-                      {card.icon}
-                    </span>
-                  </div>
-                  <div className="ml-3 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {card.name}
-                      </dt>
-                      <dd className={`text-lg sm:text-xl font-semibold ${card.textColor}`}>
-                        {stats.statusCounts[card.status] || 0}
-                      </dd>
-                    </dl>
-                  </div>
+            <div
+              key={card.status}
+              className={`${card.bgColor} ${card.hoverColor} rounded-lg p-6 cursor-pointer transition-colors duration-200`}
+              onClick={() => navigate('/dashboard/parcels', { state: { status: card.status } })}
+            >
+              <div className="flex items-center">
+                <span className="text-2xl mr-3">{card.icon}</span>
+                <div>
+                  <p className={`text-sm font-medium ${card.textColor}`}>
+                    {t(card.name)}
+                  </p>
+                  <p className="mt-1 text-3xl font-semibold text-gray-900">
+                    {stats[card.status] || 0}
+                  </p>
                 </div>
-              </div>
-              <div className={`${card.bgColor} px-4 py-2 ${card.hoverColor}`}>
-                <Link
-                  to={card.status === 'litige' ? '/dashboard/litiges' : `/dashboard/filtered-parcels?status=${card.status}`}
-                  className={`text-xs sm:text-sm font-medium ${card.textColor}`}
-                >
-                  Voir détails
-                </Link>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Liste des colis récents */}
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="px-4 py-5 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
-            <Link
-              to="/dashboard/parcels"
-              className="mt-3 sm:mt-0 text-sm font-medium text-primary-600 hover:text-primary-800"
-            >
-              Voir tous les colis
-            </Link>
-          </div>
-          
-          {/* Liste scrollable sur mobile */}
-          <div className="overflow-x-auto">
-            <div className="inline-block min-w-full align-middle">
-              <div className="overflow-hidden">
+        <div className="mt-8">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">
+            {t('dashboard.recent_parcels')}
+          </h2>
+          {recentParcels.length > 0 ? (
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <ul className="divide-y divide-gray-200">
                 {recentParcels.map((parcel) => (
-                  <div
-                    key={parcel.id}
-                    className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => navigate(`/parcels/${parcel.id}`)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {parcel.tracking_number}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}
-                      </p>
-                    </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        ${parcel.status === 'Terminé' ? 'bg-green-100 text-green-800' :
-                        parcel.status === 'En cours' ? 'bg-blue-100 text-blue-800' :
-                        parcel.status === 'Litige' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'}`}
-                      >
-                        {parcel.status}
-                      </span>
-                    </div>
-                  </div>
+                  <li key={parcel.id}>
+                    <Link
+                      to={`/dashboard/parcel-details/${parcel.id}`}
+                      className="block hover:bg-gray-50"
+                    >
+                      <div className="px-4 py-4 sm:px-6">
+                        <div className="flex items-center justify-between">
+                          <div className="truncate">
+                            <p className="text-sm font-medium text-indigo-600 truncate">
+                              {parcel.tracking_number}
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {format(new Date(parcel.created_at), 'PPP', { locale: fr })}
+                            </p>
+                          </div>
+                          <div className="ml-2 flex-shrink-0">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              parcel.status === 'recu' ? 'bg-green-100 text-green-800' :
+                              parcel.status === 'expedie' ? 'bg-blue-100 text-blue-800' :
+                              parcel.status === 'termine' ? 'bg-gray-100 text-gray-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {t(`dashboard.status.${parcel.status}`)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-          </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">
+              {t('dashboard.no_recent_parcels')}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Navigation mobile et actions rapides */}
-      <MobileNavBar />
-      <QuickActions onNewParcel={() => setIsNewParcelFormOpen(true)} />
-
-      {/* Modal de nouveau colis */}
-      <NewParcelForm
-        isOpen={isNewParcelFormOpen}
-        onClose={() => setIsNewParcelFormOpen(false)}
-        onSuccess={() => {
-          setIsNewParcelFormOpen(false);
-          fetchDashboardData();
+      <ErrorBoundary
+        FallbackComponent={ErrorFallback}
+        onReset={() => {
+          setIsNewParcelModalOpen(false);
         }}
-      />
+      >
+        <NewParcelForm
+          isOpen={isNewParcelModalOpen}
+          onClose={() => setIsNewParcelModalOpen(false)}
+          onSuccess={handleNewParcelSuccess}
+        />
+      </ErrorBoundary>
     </div>
   );
-}
+};
+
+export default Dashboard;

@@ -10,32 +10,25 @@ export function useCreateParcel() {
     mutationFn: async (formData) => {
       if (!user) throw new Error('Vous devez être connecté pour créer un colis');
 
-      // 1. Créer d'abord le colis pour avoir son ID
-      const trackingNumber = `CB${Date.now()}${Math.floor(Math.random() * 1000)}`;
-      
-      let parcelData = {
-        recipient_id: formData.recipient_id,
-        country: formData.country,
-        shipping_type: formData.shipping_type,
-        special_instructions: formData.special_instructions,
-        created_by: user.id,
-        status: 'recu',
-        tracking_number: trackingNumber
-      };
-
-      // Ajout conditionnel du poids ou du CBM selon le type d'envoi
-      if (['standard', 'express'].includes(formData.shipping_type)) {
-        parcelData.weight = Number(formData.weight) || null;
-      } else if (formData.shipping_type === 'maritime') {
-        parcelData.cbm = Number(formData.cbm) || null;
-      }
-
-      // Créer le colis
+      // Appeler la fonction create_new_parcel
       const { data: newParcel, error: parcelError } = await supabase
-        .from('parcels')
-        .insert(parcelData)
-        .select()
-        .single();
+        .rpc('create_new_parcel', {
+          p_recipient_name: formData.recipient_name,
+          p_recipient_phone: formData.recipient_phone,
+          p_country: formData.country,
+          p_created_by: user.id,
+          p_recipient_id: formData.recipient_id || null,
+          p_recipient_email: formData.recipient_email || null,
+          p_recipient_address: formData.recipient_address || null,
+          p_city: formData.city || null,
+          p_postal_code: formData.postal_code || null,
+          p_shipping_type: formData.shipping_type || 'Standard',
+          p_weight: formData.weight ? Number(formData.weight) : 0,
+          p_dimensions: formData.dimensions || null,
+          p_description: formData.special_instructions || null,
+          p_client_id: formData.client_id || null,
+          p_client_reference: formData.client_reference || null
+        });
 
       if (parcelError) throw parcelError;
 
@@ -45,35 +38,35 @@ export function useCreateParcel() {
           const photoPromises = formData.photos.map(async (photo) => {
             const fileExt = photo.name.split('.').pop();
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `${newParcel.id}/${fileName}`;
+            const filePath = `${newParcel.parcel_id}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
               .from('parcel-photos')
               .upload(filePath, photo);
 
-            if (uploadError) {
-              console.error('Erreur upload photo:', uploadError);
-              throw new Error(`Erreur lors de l'upload de la photo: ${uploadError.message}`);
-            }
+            if (uploadError) throw uploadError;
 
             return filePath;
           });
 
           await Promise.all(photoPromises);
         } catch (error) {
-          // Si l'upload échoue, on supprime le colis
-          await supabase.from('parcels').delete().eq('id', newParcel.id);
-          throw new Error(`Erreur lors de l'upload des photos: ${error.message}`);
+          console.error('Erreur lors de l\'upload des photos:', error);
+          throw new Error('Erreur lors de l\'upload des photos');
         }
       }
 
       return newParcel;
     },
+
     onSuccess: () => {
-      queryClient.invalidateQueries(['parcels']);
+      // Invalider et recharger les requêtes
+      queryClient.invalidateQueries({ queryKey: ['parcels'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
     },
+
     onError: (error) => {
-      console.error('Erreur mutation:', error);
+      console.error('Erreur lors de la création du colis:', error);
       throw error;
     }
   });

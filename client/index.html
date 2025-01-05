@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
@@ -7,6 +7,37 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Colisbridge - Gestion de colis" />
     <title>Colisbridge</title>
+    
+    <!-- Préchargement des polices -->
+    <link
+      rel="preload"
+      href="/fonts/inter.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/fonts/inter-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    
+    <!-- Polices de secours -->
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        src: local('Arial');
+        font-weight: 400;
+        font-style: normal;
+        ascent-override: 90%;
+        descent-override: 22%;
+        line-gap-override: 0%;
+        size-adjust: 107%;
+      }
+    </style>
+    
     <style>
       /* Chargement local de la police Inter */
       @font-face {

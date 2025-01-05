@@ -1,0 +1,5 @@
+-- Add date columns for different statuses
+ALTER TABLE parcels
+ADD COLUMN IF NOT EXISTS shipping_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS reception_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS completion_date TIMESTAMP WITH TIME ZONE;

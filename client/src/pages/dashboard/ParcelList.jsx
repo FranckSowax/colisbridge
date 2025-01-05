@@ -1,308 +1,449 @@
-import { Fragment, useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Transition } from '@headlessui/react';
-import { 
-  EllipsisVerticalIcon,
-  EyeIcon,
-  DocumentTextIcon,
-  PencilIcon
-} from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { useAuth } from '../../context/AuthContext';
-import { useParcels } from '../../hooks/useParcels';
-import ParcelDetails from './ParcelDetails';
-import SearchBar from '../../components/SearchBar';
-import { toast } from 'react-hot-toast';
 import { supabase } from '../../config/supabaseClient';
-import EditParcelForm from './EditParcelForm';
-import InvoiceModal from '../../components/InvoiceModal';
+import ParcelDetailsModal from '../../components/ParcelDetailsModal';
+import DisputeModal from '../../components/DisputeModal';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/20/solid';
+import { format } from 'date-fns';
+import fr from 'date-fns/locale/fr';
 
-const parcelStatuses = {
-  recu: { name: 'Reçu', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  expedie: { name: 'Expédié', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  receptionne: { name: 'Réceptionné', color: 'bg-green-100 text-green-800 border-green-200' },
-  litige: { name: 'Litige', color: 'bg-red-100 text-red-800 border-red-200' },
-  termine: { name: 'Terminé', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+const COUNTRIES = {
+  gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
+  togo: { name: 'Togo', flag: '🇹🇬', currency: 'XOF' },
+  'côte d\'ivoire': { name: 'Côte d\'Ivoire', flag: '🇨🇮', currency: 'XOF' },
+  france: { name: 'France', flag: '🇫🇷', currency: 'EUR' },
+  dubai: { name: 'Dubaï', flag: '🇦🇪', currency: 'AED' }
 };
 
-// Mapping des codes pays vers les drapeaux emoji
-const countryFlags = {
-  'France': '🇫🇷',
-  'Gabon': '🇬🇦',
-  'Togo': '🇹🇬',
-  // Ajoutez d'autres pays selon vos besoins
+const STATUSES = [
+  { value: 'recu', label: 'Reçu' },
+  { value: 'expedie', label: 'Expédié' },
+  { value: 'receptionne', label: 'Réceptionné' },
+  { value: 'termine', label: 'Terminé' },
+  { value: 'litige', label: 'Litige' }
+];
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'recu':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'expedie':
+      return 'bg-blue-100 text-blue-800';
+    case 'receptionne':
+      return 'bg-green-100 text-green-800';
+    case 'termine':
+      return 'bg-gray-100 text-gray-800';
+    case 'litige':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getStatusLabel = (status) => {
+  return STATUSES.find(s => s.value === status)?.label || 'Inconnu';
+};
+
+const VALID_STATUSES = ['recu', 'expedie', 'receptionne', 'litige', 'termine'];
+
+const CURRENCY_SYMBOLS = {
+  XAF: 'FCFA',
+  USD: '$',
+  EUR: '€'
+};
+
+const getCountryFlag = (countryCode) => {
+  const country = COUNTRIES[countryCode.toLowerCase()];
+  if (country) {
+    return `${country.flag} ${country.name}`;
+  }
+  return countryCode;
+};
+
+// Prix unitaires par type d'envoi
+const SHIPPING_RATES = {
+  'maritime': {
+    'base_rate': 5,
+    'weight_rate': 2
+  },
+  'aerien': {
+    'base_rate': 10,
+    'weight_rate': 4
+  },
+  'express': {
+    'base_rate': 15,
+    'weight_rate': 6
+  }
+};
+
+// Configuration des devises par pays
+const COUNTRY_CURRENCIES = {
+  'gabon': { currency: 'XAF', rate: 656 },
+  'cote-ivoire': { currency: 'XAF', rate: 656 },
+  'togo': { currency: 'XAF', rate: 656 },
+  'france': { currency: 'EUR', rate: 1 },
+  'dubai': { currency: 'USD', rate: 1.1 }
+};
+
+// Fonction pour formater les montants selon la devise
+const formatCurrency = (amount, currency) => {
+  const formatter = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return formatter.format(amount);
+};
+
+// Fonction pour calculer le prix total
+const calculatePrice = (parcel) => {
+  const countryConfig = COUNTRY_CURRENCIES[parcel.country.toLowerCase()] || { currency: 'EUR', rate: 1 };
+  const shippingRate = SHIPPING_RATES[parcel.shipping_type.toLowerCase()] || SHIPPING_RATES.maritime;
+  
+  // Calcul du prix en EUR
+  const basePrice = shippingRate.base_rate;
+  const weightPrice = parcel.weight * shippingRate.weight_rate;
+  const totalEUR = basePrice + weightPrice;
+  
+  // Conversion dans la devise locale
+  const totalLocal = totalEUR * countryConfig.rate;
+  
+  return {
+    amount: totalLocal,
+    currency: countryConfig.currency
+  };
 };
 
 export default function ParcelList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [localParcels, setLocalParcels] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedParcel, setSelectedParcel] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [showInvoice, setShowInvoice] = useState(false);
-  const { 
-    parcels, 
-    isLoading, 
-    error,
-    deleteParcel,
-    searchQuery,
-    handleSearch,
-    updateStatus
-  } = useParcels(user?.id);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [parcels, setParcels] = useState([]);
 
   useEffect(() => {
-    if (parcels && JSON.stringify(localParcels) !== JSON.stringify(parcels)) {
-      setLocalParcels(parcels);
+    fetchParcels();
+
+    // Souscrire aux changements de la table parcels
+    const subscription = supabase
+      .channel('parcels_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parcels'
+        },
+        (payload) => {
+          // Mettre à jour le colis modifié dans le state local
+          setParcels(currentParcels => {
+            const updatedParcels = [...currentParcels];
+            const index = updatedParcels.findIndex(p => p.id === payload.new.id);
+            
+            if (index !== -1) {
+              updatedParcels[index] = payload.new;
+            }
+            
+            return updatedParcels;
+          });
+        }
+      )
+      .subscribe();
+
+    // Nettoyer la subscription lors du démontage du composant
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchParcels = async () => {
+    let query = supabase
+      .from('parcels')
+      .select(`
+        id,
+        tracking_number,
+        recipient_name,
+        country,
+        shipping_type,
+        weight,
+        status,
+        total_price,
+        currency,
+        created_at,
+        created_by
+      `)
+      .order('created_at', { ascending: false });
+
+    if (searchQuery) {
+      query = query.ilike('tracking_number', `%${searchQuery}%`);
     }
-  }, [parcels]);
 
-  const handleStatusChange = async (parcelId, newStatus) => {
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching parcels:', error);
+      throw new Error('Erreur lors de la récupération des colis');
+    }
+
+    setParcels(data || []);
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleStatusChange = async (parcel, newStatus) => {
     try {
-      // Mise à jour optimiste
-      setLocalParcels(prevParcels =>
-        prevParcels.map(p =>
-          p.id === parcelId ? { ...p, status: newStatus } : p
-        )
-      );
-
-      let updateData = { status: newStatus };
-
-      // Mettre à jour les dates selon le statut
-      if (newStatus === 'expedie') {
-        updateData.shipping_date = new Date().toISOString();
-      } else if (newStatus === 'receptionne') {
-        updateData.reception_date = new Date().toISOString();
+      if (newStatus === 'litige') {
+        setSelectedParcel(parcel);
+        setIsDisputeModalOpen(true);
+        return;
       }
 
-      // Utiliser la mutation updateStatus
-      await updateStatus({ parcelId, newStatus, updateData });
-
-      const statusMessages = {
-        expedie: 'Colis marqué comme expédié',
-        receptionne: 'Colis réceptionné dans l\'agence locale',
-        termine: 'Colis marqué comme terminé',
-        litige: 'Litige créé et statut mis à jour'
+      const now = new Date().toISOString();
+      const updates = { 
+        status: newStatus,
+        updated_at: now,
+        ...(newStatus === 'expedie' && { shipped_at: now }),
+        ...(newStatus === 'receptionne' && { received_at: now }),
+        ...(newStatus === 'termine' && { completed_at: now })
       };
 
-      toast.success(statusMessages[newStatus] || 'Statut mis à jour avec succès');
+      const { error } = await supabase
+        .from('parcels')
+        .update(updates)
+        .eq('id', parcel.id);
+
+      if (error) throw error;
+
+      // Mettre à jour l'état local immédiatement
+      setParcels(currentParcels => {
+        return currentParcels.map(p => {
+          if (p.id === parcel.id) {
+            return { ...p, ...updates };
+          }
+          return p;
+        });
+      });
+
+      toast.success(`Statut mis à jour : ${getStatusLabel(newStatus)}`);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Erreur lors de la mise à jour du statut');
-      
-      // Restaurer l'état en rechargeant les données
-      if (parcels) {
-        setLocalParcels(parcels);
-      }
+      console.error('Error updating parcel status:', error);
+      toast.error('Une erreur est survenue lors de la mise à jour du statut');
     }
   };
 
-  return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-base font-semibold leading-6 text-gray-900">Liste des colis</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Liste de tous vos colis
-          </p>
-        </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-          <SearchBar
-            value={searchQuery}
-            onChange={handleSearch}
-            placeholder="Rechercher par numéro de suivi, destinataire, téléphone ou adresse"
-            className="mb-4"
-          />
+  const handleDisputeSubmit = async ({ description, priority }) => {
+    try {
+      const now = new Date().toISOString();
+
+      // Créer d'abord le litige
+      const { error: disputeError } = await supabase
+        .from('disputes')
+        .insert({
+          parcel_id: selectedParcel.id,
+          description,
+          priority,
+          status: 'ouvert',
+          created_at: now,
+          created_by: user?.id
+        });
+
+      if (disputeError) {
+        console.error('Error creating dispute:', disputeError);
+        toast.error('Erreur lors de la création du litige');
+        return;
+      }
+
+      // Ensuite mettre à jour le statut du colis
+      const { error: updateError } = await supabase
+        .from('parcels')
+        .update({
+          status: 'litige',
+          updated_at: now
+        })
+        .eq('id', selectedParcel.id);
+
+      if (updateError) {
+        console.error('Error updating parcel status:', updateError);
+        toast.error('Erreur lors de la mise à jour du statut');
+        return;
+      }
+
+      toast.success('Litige créé avec succès');
+      setIsDisputeModalOpen(false);
+      setSelectedParcel(null);
+    } catch (error) {
+      console.error('Error in dispute creation:', error);
+      toast.error('Une erreur est survenue lors de la création du litige');
+    }
+  };
+
+  const handleViewDetails = (parcel) => {
+    setSelectedParcel(parcel);
+    setIsModalOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setIsModalOpen(false);
+    setSelectedParcel(null);
+  };
+
+  if (!parcels.length) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+            <div className="animate-pulse flex space-x-4">
+              <div className="flex-1 space-y-4 py-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead>
-                <tr>
-                  <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
-                    Date
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Numéro de suivi
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Destinataire
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Pays
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Type d'envoi
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Poids / CBM
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Statut
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Prix Total
-                  </th>
-                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {localParcels.map((parcel) => (
-                  <tr key={parcel.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-0">
-                      {format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
-                      {parcel.tracking_number}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500">
-                      <div className="font-medium">{parcel.recipient_name}</div>
-                      <div className="text-gray-400">{parcel.recipient?.phone || parcel.recipient?.phone_number || '-'}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <span className="mr-2">{countryFlags[parcel.destination_country] || '🌍'}</span>
-                      {parcel.destination_country}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {parcel.shipping_type === 'standard' ? 'Standard' :
-                       parcel.shipping_type === 'express' ? 'Express' :
-                       parcel.shipping_type === 'maritime' ? 'Maritime' : parcel.shipping_type}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {parcel.weight > 0 ? `${parcel.weight} kg` : ''}
-                      {parcel.volume_cbm > 0 ? `${parcel.volume_cbm} m³` : ''}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <select
-                        value={parcel.status}
-                        onChange={(e) => handleStatusChange(parcel.id, e.target.value)}
-                        className={`rounded-md border px-2 py-1 text-sm ${parcelStatuses[parcel.status]?.color || 'bg-gray-100 text-gray-800 border-gray-200'}`}
-                      >
-                        <option value="recu">Reçu</option>
-                        <option value="expedie">Expédié</option>
-                        <option value="receptionne">Réceptionné</option>
-                        <option value="litige">Litige</option>
-                        <option value="termine">Terminé</option>
-                      </select>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {parcel.total_price ? `${parcel.total_price} ${parcel.currency}` : '-'}
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
-                      <Menu as="div" className="relative inline-block text-left">
-                        <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
-                          <span className="sr-only">Options</span>
-                          <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
-                        </Menu.Button>
+  return (
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        <h1 className="text-2xl font-semibold text-gray-900">Bienvenue, {user?.email}</h1>
+        
+        {/* Liste des colis récents */}
+        <div className="mt-8">
+          <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
+          <div className="mt-4">
+            <div className="mt-4 flex justify-between items-center">
+              <div className="flex-1" />
+              <div className="w-96">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Rechercher par numéro de suivi"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    className="block w-full rounded-md border-gray-300 pl-10 pr-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                        <Transition
-                          as={Fragment}
-                          enter="transition ease-out duration-100"
-                          enterFrom="transform opacity-0 scale-95"
-                          enterTo="transform opacity-100 scale-100"
-                          leave="transition ease-in duration-75"
-                          leaveFrom="transform opacity-100 scale-100"
-                          leaveTo="transform opacity-0 scale-95"
-                        >
-                          <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                            <div className="py-1">
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedParcel(parcel);
-                                      setShowDetails(true);
-                                    }}
-                                    className={`${
-                                      active ? 'bg-gray-100' : ''
-                                    } flex w-full px-4 py-2 text-sm text-gray-700`}
-                                  >
-                                    <EyeIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
-                                    Voir les détails
-                                  </button>
-                                )}
-                              </Menu.Item>
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedParcel(parcel);
-                                      setShowInvoice(true);
-                                    }}
-                                    className={`${
-                                      active ? 'bg-gray-100' : ''
-                                    } flex w-full px-4 py-2 text-sm text-gray-700`}
-                                  >
-                                    <DocumentTextIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
-                                    Voir la facture
-                                  </button>
-                                )}
-                              </Menu.Item>
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedParcel(parcel);
-                                      setShowEditForm(true);
-                                    }}
-                                    className={`${
-                                      active ? 'bg-gray-100' : ''
-                                    } flex w-full px-4 py-2 text-sm text-gray-700`}
-                                  >
-                                    <PencilIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
-                                    Modifier
-                                  </button>
-                                )}
-                              </Menu.Item>
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button
-                                    onClick={() => deleteParcel(parcel.id)}
-                                    className={`${
-                                      active ? 'bg-red-50 text-red-900' : 'text-red-600'
-                                    } block px-4 py-2 text-sm w-full text-left`}
-                                  >
-                                    Supprimer
-                                  </button>
-                                )}
-                              </Menu.Item>
-                            </div>
-                          </Menu.Items>
-                        </Transition>
-                      </Menu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="mt-8">
+              <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                <div className="inline-block min-w-full py-2 align-middle">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">
+                          Date
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Numéro de suivi
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Destinataire
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Pays
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Type d'envoi
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Poids / CBM
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Statut
+                        </th>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                          Prix Total
+                        </th>
+                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {parcels.map((parcel) => (
+                        <tr key={parcel.id}>
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500">
+                            {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+                            {parcel.tracking_number}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                            {parcel.recipient_name}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {getCountryFlag(parcel.country)}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {parcel.shipping_type}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {parcel.weight} kg
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4">
+                            <select
+                              value={parcel.status}
+                              onChange={(e) => handleStatusChange(parcel, e.target.value)}
+                              className={`appearance-none rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(parcel.status)} focus:outline-none`}
+                            >
+                              {STATUSES.map((status) => (
+                                <option key={status.value} value={status.value}>
+                                  {status.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                            {formatCurrency(calculatePrice(parcel).amount, calculatePrice(parcel).currency)}
+                          </td>
+                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <button
+                              onClick={() => handleViewDetails(parcel)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              •••
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <ParcelDetails
-        open={showDetails}
-        setOpen={setShowDetails}
-        parcel={selectedParcel}
-      />
-
-      <EditParcelForm
-        open={showEditForm}
-        setOpen={setShowEditForm}
-        parcel={selectedParcel}
-        onUpdate={updateStatus}
-      />
-
-      <InvoiceModal 
-        open={showInvoice} 
-        setOpen={setShowInvoice} 
-        invoiceData={selectedParcel} 
-      />
+      {selectedParcel && (
+        <ParcelDetailsModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedParcel(null);
+          }}
+          parcel={selectedParcel}
+        />
+      )}
     </div>
   );
 }

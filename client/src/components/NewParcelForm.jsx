@@ -5,37 +5,69 @@ import { PhotoIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 import { Combobox } from '@headlessui/react';
 import toast from 'react-hot-toast';
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage } from '@contexts/LanguageContext';
 import { useCreateParcel } from '../hooks/useCreateParcel';
 import { useRecipients } from '../hooks/useRecipients';
 import { useCreateRecipient } from '../hooks/useCreateRecipient';
 import { useCalculatePrice } from '../hooks/useCalculatePrice';
 import { notificationService } from '../services/notificationService';
+import { useAuth } from '@contexts/AuthContext';
+import { photoService } from '../services/photoService';
+import PhotoUpload from './PhotoUpload';
 
 const SHIPPING_TYPES = [
-  { id: 'standard', name: 'standard' },
-  { id: 'express', name: 'express' },
-  { id: 'maritime', name: 'maritime' }
+  { id: 'Standard', name: 'parcels.form.shippingType.standard' },
+  { id: 'Express', name: 'parcels.form.shippingType.express' },
+  { id: 'Maritime', name: 'parcels.form.shippingType.maritime' }
 ];
 
 const COUNTRIES = [
-  { id: 'france', name: 'France' },
-  { id: 'gabon', name: 'Gabon' },
-  { id: 'togo', name: 'Togo' },
-  { id: 'cote_ivoire', name: "Côte d'Ivoire" },
-  { id: 'dubai', name: 'Dubaï' }
+  { id: 'france', name: 'parcels.form.country.france' },
+  { id: 'gabon', name: 'parcels.form.country.gabon' },
+  { id: 'togo', name: 'parcels.form.country.togo' },
+  { id: 'cote_ivoire', name: 'parcels.form.country.cote_ivoire' },
+  { id: 'dubai', name: 'parcels.form.country.dubai' }
 ];
 
-export default function NewParcelForm({ isOpen, onClose }) {
-  const { t } = useLanguage();
+const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
+  const { user } = useAuth();
+  const { t, loading: langLoading } = useLanguage();
+  
+  // Si le contexte de langue n'est pas encore chargé, on affiche un loader
+  if (langLoading) {
+    return (
+      <Dialog
+        as="div"
+        className="fixed inset-0 z-10 overflow-y-auto"
+        onClose={onClose}
+        open={isOpen}
+      >
+        <div className="flex min-h-screen items-center justify-center">
+          <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
+          <div className="relative bg-white p-8 rounded-lg">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        </div>
+      </Dialog>
+    );
+  }
+
   const [formData, setFormData] = useState({
     recipient_id: '',
+    recipient_name: '',
+    recipient_phone: '',
+    recipient_email: '',
+    recipient_address: '',
     country: 'france',
-    shipping_type: 'standard',
+    city: '',
+    postal_code: '',
+    shipping_type: 'Standard',
     weight: '',
-    cbm: '',
+    dimensions: '',
     special_instructions: '',
-    photos: []
+    photos: [],
+    client_id: null,
+    client_reference: null
   });
 
   const [query, setQuery] = useState('');
@@ -49,19 +81,20 @@ export default function NewParcelForm({ isOpen, onClose }) {
   
   const [photoPreview, setPhotoPreview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [photos, setPhotos] = useState([]);
   
   const { data: recipients, isLoading: recipientsLoading } = useRecipients();
   const createParcelMutation = useCreateParcel();
   const createRecipientMutation = useCreateRecipient();
-  const { data: priceData, isLoading: isPriceLoading } = useCalculatePrice({
+  const { data: priceData, refetch: refetchPrice } = useCalculatePrice({
     country: formData.country,
     shippingType: formData.shipping_type,
-    weight: parseFloat(formData.weight) || null,
-    cbm: parseFloat(formData.cbm) || null
+    weight: formData.weight ? parseFloat(formData.weight) : null,
+    cbm: formData.cbm ? parseFloat(formData.cbm) : null
   });
 
   const displayPrice = () => {
-    if (isPriceLoading) return t('parcels.form.shipping.calculating');
+    if (priceData === undefined) return t('parcels.form.shipping.calculating');
     if (!priceData) return '-';
     return priceData.formatted;
   };
@@ -86,12 +119,7 @@ export default function NewParcelForm({ isOpen, onClose }) {
         [name]: value
       };
 
-      const price = await priceData.refetch({
-        country: newFormData.country,
-        shippingType: newFormData.shipping_type,
-        weight: newFormData.weight ? parseFloat(newFormData.weight) : null,
-        cbm: newFormData.cbm ? parseFloat(newFormData.cbm) : null
-      });
+      await refetchPrice();
     }
   };
 
@@ -139,11 +167,11 @@ export default function NewParcelForm({ isOpen, onClose }) {
   };
 
   const validateForm = () => {
-    if (formData.shipping_type === 'maritime' && !formData.cbm) {
+    if (formData.shipping_type === 'Maritime' && !formData.cbm) {
       toast.error(t('parcels.form.errors.cbmRequired'));
       return false;
     }
-    if (['standard', 'express'].includes(formData.shipping_type) && !formData.weight) {
+    if (['Standard', 'Express'].includes(formData.shipping_type) && !formData.weight) {
       toast.error(t('parcels.form.errors.weightRequired'));
       return false;
     }
@@ -162,6 +190,7 @@ export default function NewParcelForm({ isOpen, onClose }) {
       if (!validateForm()) return;
 
       let recipientId = formData.recipient_id;
+      let recipientData = {};
 
       if (isNewRecipient) {
         const newRecipientData = await createRecipientMutation.mutateAsync({
@@ -176,25 +205,50 @@ export default function NewParcelForm({ isOpen, onClose }) {
         }
         
         recipientId = newRecipientData.id;
+        recipientData = newRecipient;
       } else if (!recipientId || recipientId === 'new') {
         throw new Error(t('parcels.form.errors.recipientSelection'));
+      } else {
+        // Utiliser les données du destinataire sélectionné
+        const selectedRecipient = recipients.find(r => r.id === recipientId);
+        if (selectedRecipient) {
+          recipientData = {
+            name: selectedRecipient.name,
+            email: selectedRecipient.email,
+            phone: selectedRecipient.phone,
+            address: selectedRecipient.address
+          };
+        }
       }
 
       const parcelData = {
         ...formData,
         recipient_id: recipientId,
-        total_price: priceData.total,
-        currency: priceData.currency,
-        status: 'reçu'
+        recipient_name: recipientData.name,
+        recipient_phone: recipientData.phone,
+        recipient_email: recipientData.email,
+        recipient_address: recipientData.address,
+        shipping_type: formData.shipping_type,
+        special_instructions: formData.special_instructions || null,
+        dimensions: formData.dimensions || null,
+        weight: formData.weight ? Number(formData.weight) : 0
       };
 
       const data = await createParcelMutation.mutateAsync(parcelData);
       
       if (data) {
+        // Télécharger les photos
+        if (photos.length > 0) {
+          const uploadPromises = photos.map(photo => 
+            photoService.uploadParcelPhoto(photo, data.parcel_id)
+          );
+          await Promise.all(uploadPromises);
+        }
+
         // Créer une notification pour le nouveau colis
         await notificationService.notifyParcelCreated(
-          1, // user.id
-          data.id,
+          user.id,
+          data.parcel_id,
           data.tracking_number
         );
         
@@ -208,245 +262,230 @@ export default function NewParcelForm({ isOpen, onClose }) {
   };
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="fixed inset-0 z-10 overflow-y-auto" onClose={onClose}>
+        <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
 
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-0">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-t-xl sm:rounded-lg bg-white w-full sm:max-w-lg transition-all">
-                {/* Header */}
-                <div className="border-b border-gray-200 p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <Dialog.Title className="text-lg font-semibold text-gray-900">
-                      {t('parcels.form.title')}
-                    </Dialog.Title>
-                    <button
-                      type="button"
-                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
-                      onClick={onClose}
-                    >
-                      <span className="sr-only">{t('parcels.form.close')}</span>
-                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
+          <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">
+            &#8203;
+          </span>
 
-                {/* Formulaire */}
-                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                  {/* Destinataire */}
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <Combobox
-                        as="div"
-                        value={formData.recipient_id}
-                        onChange={(value) => {
-                          if (value === 'new') {
-                            setIsNewRecipient(true);
-                          } else {
-                            setIsNewRecipient(false);
-                            setFormData(prev => ({ ...prev, recipient_id: value }));
-                          }
-                        }}
-                      >
-                        <Combobox.Label className="block text-sm font-medium text-gray-700">
-                          {t('parcels.form.recipient')}
-                        </Combobox.Label>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            enterTo="opacity-100 translate-y-0 sm:scale-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+          >
+            <div className="inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6 sm:align-middle">
+              <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                <button
+                  type="button"
+                  className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  onClick={onClose}
+                >
+                  <span className="sr-only">{t('actions.close')}</span>
+                  <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="sm:flex sm:items-start">
+                <div className="mt-3 w-full text-center sm:mt-0 sm:text-left">
+                  <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
+                    {t('parcels.form.title')}
+                  </Dialog.Title>
+
+                  <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        {t('parcels.form.recipient.select')}
+                      </label>
+                      <Combobox value={formData.recipient_id} onChange={(value) => {
+                        if (value === 'new') {
+                          setIsNewRecipient(true);
+                        } else {
+                          setIsNewRecipient(false);
+                          setFormData(prev => ({ ...prev, recipient_id: value }));
+                        }
+                      }}>
                         <div className="relative mt-1">
-                          <Combobox.Input
-                            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
-                            onChange={(event) => setQuery(event.target.value)}
-                            displayValue={(id) => {
-                              if (id === 'new') return t('parcels.form.newRecipient');
-                              const recipient = recipients?.find(r => r.id === id);
-                              return recipient ? `${recipient.name} (${recipient.phone})` : '';
-                            }}
-                          />
-                          <Combobox.Button className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
-                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                          </Combobox.Button>
-
-                          <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                            <Combobox.Option
-                              value="new"
-                              className={({ active }) =>
-                                `relative cursor-default select-none py-2 pl-3 pr-9 ${
-                                  active ? 'bg-indigo-600 text-white' : 'text-gray-900'
-                                }`
-                              }
-                            >
-                              {({ active, selected }) => (
-                                <>
-                                  <div className="flex items-center">
-                                    <PlusIcon className="h-5 w-5 mr-2" />
-                                    <span>{t('parcels.form.newRecipient')}</span>
-                                  </div>
-                                  {selected && (
-                                    <span className={`absolute inset-y-0 right-0 flex items-center pr-4 ${
-                                      active ? 'text-white' : 'text-indigo-600'
-                                    }`}>
-                                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                            </Combobox.Option>
-                            {filteredRecipients.map((recipient) => (
+                          <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm">
+                            <Combobox.Input
+                              className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                              placeholder={t('parcels.form.recipient.search')}
+                              onChange={(event) => setQuery(event.target.value)}
+                            />
+                            <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                              <ChevronUpDownIcon
+                                className="h-5 w-5 text-gray-400"
+                                aria-hidden="true"
+                              />
+                            </Combobox.Button>
+                          </div>
+                          <Transition
+                            as={Fragment}
+                            leave="transition ease-in duration-100"
+                            leaveFrom="opacity-100"
+                            leaveTo="opacity-0"
+                            afterLeave={() => setQuery('')}
+                          >
+                            <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                               <Combobox.Option
-                                key={recipient.id}
-                                value={recipient.id}
                                 className={({ active }) =>
-                                  `relative cursor-default select-none py-2 pl-3 pr-9 ${
-                                    active ? 'bg-indigo-600 text-white' : 'text-gray-900'
+                                  `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                                    active ? 'bg-teal-600 text-white' : 'text-gray-900'
                                   }`
                                 }
+                                value="new"
                               >
-                                {({ active, selected }) => (
-                                  <>
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{recipient.name}</span>
-                                      <span className="text-sm text-gray-500">{recipient.phone}</span>
-                                    </div>
-                                    {selected && (
-                                      <span className={`absolute inset-y-0 right-0 flex items-center pr-4 ${
-                                        active ? 'text-white' : 'text-indigo-600'
-                                      }`}>
-                                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                                      </span>
-                                    )}
-                                  </>
-                                )}
+                                {t('parcels.form.recipient.new')}
                               </Combobox.Option>
-                            ))}
-                          </Combobox.Options>
+                            </Combobox.Options>
+                          </Transition>
                         </div>
                       </Combobox>
                     </div>
 
                     {isNewRecipient && (
-                      <div className="space-y-4 p-4 bg-gray-50 rounded-md">
-                        <h3 className="text-sm font-medium text-gray-900">{t('parcels.form.newRecipient')}</h3>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                              {t('parcels.form.recipientName')}
-                            </label>
-                            <input
-                              type="text"
-                              name="name"
-                              id="name"
-                              required
-                              value={newRecipient.name}
-                              onChange={handleNewRecipientChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                              {t('parcels.form.recipientPhone')}
-                            </label>
-                            <input
-                              type="tel"
-                              name="phone"
-                              id="phone"
-                              required
-                              value={newRecipient.phone}
-                              onChange={handleNewRecipientChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                              {t('parcels.form.recipientEmail')}
-                            </label>
-                            <input
-                              type="email"
-                              name="email"
-                              id="email"
-                              value={newRecipient.email}
-                              onChange={handleNewRecipientChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                              {t('parcels.form.recipientAddress')}
-                            </label>
-                            <textarea
-                              name="address"
-                              id="address"
-                              required
-                              rows={3}
-                              value={newRecipient.address}
-                              onChange={handleNewRecipientChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            />
-                          </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="recipientName" className="block text-sm font-medium text-gray-700">
+                            {t('parcels.form.recipientName')}
+                          </label>
+                          <input
+                            type="text"
+                            name="recipientName"
+                            id="recipientName"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            value={newRecipient.name}
+                            onChange={handleNewRecipientChange}
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="recipientEmail" className="block text-sm font-medium text-gray-700">
+                            {t('parcels.form.recipientEmail')}
+                          </label>
+                          <input
+                            type="email"
+                            name="recipientEmail"
+                            id="recipientEmail"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            value={newRecipient.email}
+                            onChange={handleNewRecipientChange}
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="recipientPhone" className="block text-sm font-medium text-gray-700">
+                            {t('parcels.form.recipientPhone')}
+                          </label>
+                          <input
+                            type="tel"
+                            name="recipientPhone"
+                            id="recipientPhone"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            value={newRecipient.phone}
+                            onChange={handleNewRecipientChange}
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="recipientAddress" className="block text-sm font-medium text-gray-700">
+                            {t('parcels.form.recipientAddress')}
+                          </label>
+                          <input
+                            type="text"
+                            name="recipientAddress"
+                            id="recipientAddress"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            value={newRecipient.address}
+                            onChange={handleNewRecipientChange}
+                          />
                         </div>
                       </div>
                     )}
-                  </div>
 
-                  {/* Informations d'expédition */}
-                  <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="shipping_type" className="block text-sm font-medium text-gray-700">
-                        {t('parcels.form.shippingType')}
-                      </label>
-                      <select
-                        id="shipping_type"
-                        name="shipping_type"
-                        value={formData.shipping_type}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      >
-                        {SHIPPING_TYPES.map(type => (
-                          <option key={type.id} value={type.id}>
-                            {t(`parcels.form.shippingTypes.${type.name}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="shipping_type" className="block text-sm font-medium text-gray-700">
+                          {t('parcels.form.shippingType')}
+                        </label>
+                        <select
+                          id="shipping_type"
+                          name="shipping_type"
+                          value={formData.shipping_type}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        >
+                          {SHIPPING_TYPES.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {t(type.name)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div>
-                      <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                        {t('parcels.form.country')}
-                      </label>
-                      <select
-                        id="country"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      >
-                        {COUNTRIES.map(country => (
-                          <option key={country.id} value={country.id}>
-                            {country.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                      <div>
+                        <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                          {t('parcels.form.country')}
+                        </label>
+                        <select
+                          id="country"
+                          name="country"
+                          value={formData.country}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        >
+                          {COUNTRIES.map((country) => (
+                            <option key={country.id} value={country.id}>
+                              {t(country.name)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                    {formData.shipping_type !== 'maritime' ? (
+                      <div>
+                        <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                          {t('parcels.form.city')}
+                        </label>
+                        <input
+                          type="text"
+                          name="city"
+                          id="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="postal_code" className="block text-sm font-medium text-gray-700">
+                          {t('parcels.form.postalCode')}
+                        </label>
+                        <input
+                          type="text"
+                          name="postal_code"
+                          id="postal_code"
+                          value={formData.postal_code}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+
                       <div>
                         <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
                           {t('parcels.form.weight')}
@@ -455,123 +494,80 @@ export default function NewParcelForm({ isOpen, onClose }) {
                           type="number"
                           name="weight"
                           id="weight"
-                          step="0.1"
-                          min="0"
                           value={formData.weight}
                           onChange={handleInputChange}
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                         />
                       </div>
-                    ) : (
+
                       <div>
-                        <label htmlFor="cbm" className="block text-sm font-medium text-gray-700">
-                          {t('parcels.form.cbm')}
+                        <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                          {t('parcels.form.price')}
                         </label>
                         <input
-                          type="number"
-                          name="cbm"
-                          id="cbm"
-                          step="0.1"
-                          min="0"
-                          value={formData.cbm}
-                          onChange={handleInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          type="text"
+                          name="price"
+                          id="price"
+                          value={displayPrice()}
+                          readOnly
+                          className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                         />
                       </div>
-                    )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="special_instructions" className="block text-sm font-medium text-gray-700">
+                        {t('parcels.form.specialInstructions')}
+                      </label>
+                      <textarea
+                        id="special_instructions"
+                        name="special_instructions"
+                        rows={3}
+                        value={formData.special_instructions}
+                        onChange={handleInputChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                      />
+                    </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        {t('parcels.form.price')}
+                        {t('parcels.form.photos.label')}
                       </label>
-                      <div className="mt-1 flex items-center">
-                        <span className="block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-gray-500 sm:text-sm">
-                          {displayPrice()}
-                        </span>
-                      </div>
+                      <PhotoUpload photos={photos} onChange={setPhotos} />
                     </div>
-                  </div>
 
-                  {/* Instructions spéciales */}
-                  <div>
-                    <label htmlFor="special_instructions" className="block text-sm font-medium text-gray-700">
-                      {t('parcels.form.specialInstructions')}
-                    </label>
-                    <textarea
-                      id="special_instructions"
-                      name="special_instructions"
-                      rows={3}
-                      value={formData.special_instructions}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    />
-                  </div>
-
-                  {/* Photos */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      {t('parcels.form.photos')} ({photoPreview.length}/5)
-                    </label>
-                    <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                      {photoPreview.map((photo, index) => (
-                        <div key={index} className="relative aspect-square">
-                          <img
-                            src={photo.preview}
-                            alt={`Preview ${index + 1}`}
-                            className="h-full w-full object-cover rounded-md"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removePhoto(index)}
-                            className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white p-1 text-xs"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      {photoPreview.length < 5 && (
-                        <div className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
-                          <label className="cursor-pointer w-full h-full flex items-center justify-center">
-                            <PhotoIcon className="h-8 w-8 text-gray-400" />
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              onChange={handlePhotoChange}
-                              className="sr-only"
-                            />
-                          </label>
-                        </div>
-                      )}
+                    <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-2 sm:text-sm disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center">
+                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                            {t('loading.submitting')}
+                          </div>
+                        ) : (
+                          t('parcels.form.submit')
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
+                        onClick={onClose}
+                      >
+                        {t('parcels.form.cancel')}
+                      </button>
                     </div>
-                    <p className="mt-2 text-sm text-gray-500">
-                      {t('parcels.form.photosLimit')}
-                    </p>
-                  </div>
-
-                  {/* Boutons */}
-                  <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row-reverse gap-2">
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="w-full sm:w-auto flex-1 justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? t('parcels.form.loading') : t('parcels.form.submit')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="w-full sm:w-auto flex-1 justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
-                      {t('parcels.form.cancel')}
-                    </button>
-                  </div>
-                </form>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </Transition.Child>
         </div>
       </Dialog>
-    </Transition>
+    </Transition.Root>
   );
 }
+
+export default NewParcelForm;

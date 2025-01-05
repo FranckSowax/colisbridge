@@ -2,60 +2,49 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const path = require('path');
-const syncDatabase = require('./config/syncDatabase');
-
-// Routes
+const { createClient } = require('@supabase/supabase-js');
 const authRoutes = require('./routes/authRoutes');
-const parcelRoutes = require('./routes/parcelRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
 
-// Initialisation de l'application Express
 const app = express();
+const port = process.env.PORT || 3000;
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Servir les fichiers statiques
-app.use(express.static(path.join(__dirname, '../public')));
+// Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-// Routes API
+// Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/parcels', parcelRoutes);
-app.use('/api/webhooks', webhookRoutes);
 
+// Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'ColisBridge API is running' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Gestion des erreurs 404
-app.use((req, res, next) => {
-  res.status(404).json({ message: 'Route non trouvée' });
+// Route par défaut pour le frontend
+app.get('*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Route non trouvée',
+    message: 'La route demandée n\'existe pas'
+  });
 });
 
-// Gestion globale des erreurs
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Erreur interne du serveur',
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
+  res.status(500).json({
+    error: 'Une erreur est survenue !',
+    message: err.message
   });
 });
 
-// Synchronisation de la base de données et démarrage du serveur
-const PORT = process.env.PORT || 3000;
-
-syncDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Serveur démarré sur le port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
-    });
-  })
-  .catch(error => {
-    console.error('Erreur lors du démarrage du serveur:', error);
-    process.exit(1);
-  });
+// Start server
+app.listen(port, () => {
+  console.log(`Serveur démarré sur le port ${port}`);
+});
