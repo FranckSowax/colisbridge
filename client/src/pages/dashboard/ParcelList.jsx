@@ -1,15 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
 import ParcelDetailsModal from '../../components/ParcelDetailsModal';
 import DisputeModal from '../../components/DisputeModal';
+import EditParcelModal from '../../components/EditParcelModal';
+import DeleteParcelModal from '../../components/DeleteParcelModal';
+import ParcelActionsMenu from '../../components/ParcelActionsMenu';
 import { useAuth } from '../../context/AuthContext';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/20/solid';
 import { format } from 'date-fns';
-import fr from 'date-fns/locale/fr';
+import { fr } from 'date-fns/locale';
 import { useParcelPrice } from '../../hooks/useParcelPrice';
+import { generateInvoice } from '../../services/invoiceService';
 
 const COUNTRIES = {
   gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
@@ -100,7 +104,7 @@ const renderSearchSection = () => (
   </div>
 );
 
-const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange }) => {
+const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange, onEdit, onDelete, onViewInvoice }) => {
   const { data: priceData } = useParcelPrice(parcel);
   
   return (
@@ -141,12 +145,12 @@ const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange }) => {
         {priceData?.formatted || '-'}
       </td>
       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-        <button
-          onClick={() => onViewDetails(parcel)}
-          className="text-indigo-600 hover:text-indigo-900"
-        >
-          •••
-        </button>
+        <ParcelActionsMenu
+          onEdit={() => onEdit(parcel)}
+          onDelete={() => onDelete(parcel)}
+          onViewInvoice={() => onViewInvoice(parcel, priceData)}
+          onViewDetails={() => onViewDetails(parcel)}
+        />
       </td>
     </tr>
   );
@@ -155,50 +159,15 @@ const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange }) => {
 export default function ParcelList() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParcel, setSelectedParcel] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
-  const [parcels, setParcels] = useState([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchType, setSearchType] = useState('tracking'); // 'tracking' ou 'recipient'
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchParcels();
-    }, 300);
-
-    // Souscrire aux changements de la table parcels
-    const subscription = supabase
-      .channel('parcels_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'parcels'
-        },
-        (payload) => {
-          // Mettre à jour le colis modifié dans le state local
-          setParcels(currentParcels => {
-            const updatedParcels = [...currentParcels];
-            const index = updatedParcels.findIndex(p => p.id === payload.new.id);
-            
-            if (index !== -1) {
-              updatedParcels[index] = payload.new;
-            }
-            
-            return updatedParcels;
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(delayDebounceFn);
-      subscription.unsubscribe();
-    };
-  }, [searchQuery, searchType]);
+  const [searchType, setSearchType] = useState('tracking');
 
   const fetchParcels = async () => {
     let query = supabase
@@ -228,15 +197,39 @@ export default function ParcelList() {
     }
 
     const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching parcels:', error);
-      toast.error('Erreur lors de la récupération des colis');
-      return;
-    }
-
-    setParcels(data || []);
+    if (error) throw error;
+    return data;
   };
+
+  const { data: parcels = [], refetch } = useQuery({
+    queryKey: ['parcels', searchQuery, searchType],
+    queryFn: fetchParcels,
+    refetchOnWindowFocus: true,
+    staleTime: 1000,
+  });
+
+  useEffect(() => {
+    // Souscrire aux changements de la table parcels
+    const subscription = supabase
+      .channel('parcels_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parcels'
+        },
+        () => {
+          // Rafraîchir les données via React Query
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refetch]);
 
   const handleStatusChange = async (parcel, newStatus) => {
     try {
@@ -262,16 +255,8 @@ export default function ParcelList() {
 
       if (error) throw error;
 
-      // Mettre à jour l'état local immédiatement
-      setParcels(currentParcels => {
-        return currentParcels.map(p => {
-          if (p.id === parcel.id) {
-            return { ...p, ...updates };
-          }
-          return p;
-        });
-      });
-
+      // Invalider le cache pour forcer un rafraîchissement
+      queryClient.invalidateQueries(['parcels']);
       toast.success(`Statut mis à jour : ${getStatusLabel(newStatus)}`);
     } catch (error) {
       console.error('Error updating parcel status:', error);
@@ -295,11 +280,7 @@ export default function ParcelList() {
           created_by: user?.id
         });
 
-      if (disputeError) {
-        console.error('Error creating dispute:', disputeError);
-        toast.error('Erreur lors de la création du litige');
-        return;
-      }
+      if (disputeError) throw disputeError;
 
       // Ensuite mettre à jour le statut du colis
       const { error: updateError } = await supabase
@@ -310,12 +291,11 @@ export default function ParcelList() {
         })
         .eq('id', selectedParcel.id);
 
-      if (updateError) {
-        console.error('Error updating parcel status:', updateError);
-        toast.error('Erreur lors de la mise à jour du statut');
-        return;
-      }
+      if (updateError) throw updateError;
 
+      // Invalider les requêtes pour forcer le rafraîchissement
+      queryClient.invalidateQueries(['parcels']);
+      
       toast.success('Litige créé avec succès');
       setIsDisputeModalOpen(false);
       setSelectedParcel(null);
@@ -325,9 +305,123 @@ export default function ParcelList() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!selectedParcel?.id) {
+      toast.error('Erreur : ID du colis manquant');
+      return;
+    }
+
+    try {
+      // 1. Vérifier que le colis existe
+      const { data: parcelCheck, error: checkError } = await supabase
+        .from('parcels')
+        .select('id')
+        .eq('id', selectedParcel.id);
+
+      if (checkError) throw checkError;
+      
+      if (!parcelCheck || parcelCheck.length === 0) {
+        throw new Error('Le colis n\'existe pas ou a déjà été supprimé');
+      }
+
+      // 2. Supprimer les litiges associés
+      const { error: disputeError } = await supabase
+        .from('disputes')
+        .delete()
+        .eq('parcel_id', selectedParcel.id);
+
+      if (disputeError) {
+        console.error('Erreur lors de la suppression des litiges:', disputeError);
+      }
+
+      // 3. Supprimer les notifications
+      const { error: notifError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('parcel_id', selectedParcel.id);
+
+      if (notifError) {
+        console.error('Erreur lors de la suppression des notifications:', notifError);
+      }
+
+      // 4. Gérer les photos
+      const { data: photos, error: photosError } = await supabase
+        .from('parcel_photos')
+        .select('file_name')
+        .eq('parcel_id', selectedParcel.id);
+
+      if (photosError) throw photosError;
+
+      if (photos && photos.length > 0) {
+        // 4.1 Supprimer d'abord les références dans la base de données
+        const { error: photoDeleteError } = await supabase
+          .from('parcel_photos')
+          .delete()
+          .eq('parcel_id', selectedParcel.id);
+
+        if (photoDeleteError) throw photoDeleteError;
+
+        // 4.2 Ensuite supprimer les fichiers du storage
+        const filesToRemove = photos.map(photo => `${selectedParcel.id}/${photo.file_name}`);
+        const { error: storageError } = await supabase.storage
+          .from('parcel-photos')
+          .remove(filesToRemove);
+
+        if (storageError) {
+          console.error('Erreur lors de la suppression des fichiers:', storageError);
+        }
+      }
+
+      // 5. Finalement, supprimer le colis
+      const { error: parcelError } = await supabase
+        .from('parcels')
+        .delete()
+        .eq('id', selectedParcel.id);
+
+      if (parcelError) {
+        console.error('Erreur lors de la suppression du colis:', parcelError);
+        throw parcelError;
+      }
+
+      // 6. Invalider les requêtes pour forcer le rafraîchissement
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['parcels'] }),
+        queryClient.invalidateQueries({ queryKey: ['statistics'] })
+      ]);
+      
+      toast.success('Colis supprimé avec succès');
+    } catch (error) {
+      console.error('Error deleting parcel:', error);
+      toast.error('Erreur lors de la suppression du colis : ' + (error.message || 'Erreur inconnue'));
+    } finally {
+      setIsDeleteModalOpen(false);
+      setSelectedParcel(null);
+    }
+  };
+
   const handleViewDetails = (parcel) => {
     setSelectedParcel(parcel);
     setIsModalOpen(true);
+  };
+
+  const handleEdit = (parcel) => {
+    setSelectedParcel(parcel);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDelete = async (parcel) => {
+    setSelectedParcel(parcel);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleViewInvoice = (parcel, priceData) => {
+    generateInvoice(parcel, priceData);
+  };
+
+  const handleEditSuccess = () => {
+    refetch();
+    setIsEditModalOpen(false);
+    setSelectedParcel(null);
   };
 
   const closeDrawer = () => {
@@ -408,6 +502,9 @@ export default function ParcelList() {
                           parcel={parcel}
                           onViewDetails={handleViewDetails}
                           onStatusChange={handleStatusChange}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          onViewInvoice={handleViewInvoice}
                         />
                       ))}
                     </tbody>
@@ -429,6 +526,30 @@ export default function ParcelList() {
           parcel={selectedParcel}
         />
       )}
+      
+      <DisputeModal
+        isOpen={isDisputeModalOpen}
+        onClose={() => setIsDisputeModalOpen(false)}
+        parcel={selectedParcel}
+        onSubmit={handleDisputeSubmit}
+      />
+      
+      <EditParcelModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        parcel={selectedParcel}
+        onSuccess={handleEditSuccess}
+      />
+      
+      <DeleteParcelModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedParcel(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        parcel={selectedParcel}
+      />
     </div>
   );
 }
