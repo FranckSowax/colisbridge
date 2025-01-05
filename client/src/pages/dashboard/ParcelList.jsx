@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/20/solid';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
+import { useParcelPrice } from '../../hooks/useParcelPrice';
 
 const COUNTRIES = {
   gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
@@ -63,59 +64,92 @@ const getCountryFlag = (countryCode) => {
   return countryCode;
 };
 
-// Prix unitaires par type d'envoi
-const SHIPPING_RATES = {
-  'maritime': {
-    'base_rate': 5,
-    'weight_rate': 2
-  },
-  'aerien': {
-    'base_rate': 10,
-    'weight_rate': 4
-  },
-  'express': {
-    'base_rate': 15,
-    'weight_rate': 6
-  }
-};
+const renderSearchSection = () => (
+  <div className="mb-6">
+    <div className="max-w-3xl mx-auto">
+      <div className={`relative rounded-lg shadow-sm`}>
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
+        
+        <input
+          type="text"
+          name="search"
+          className="block w-full rounded-lg border-gray-300 pl-10 pr-32 focus:outline-none focus:ring-0 focus:border-gray-300 sm:text-sm h-12"
+          placeholder="Rechercher par numéro de suivi..."
+          value=""
+          onChange={() => {}}
+          onFocus={() => {}}
+          onBlur={() => {}}
+        />
+        
+        <div className="absolute inset-y-0 right-0 flex items-center">
+          <div className="h-full flex items-center border-l border-gray-300">
+            <select
+              value="tracking"
+              onChange={(e) => {}}
+              className="h-full border-transparent bg-transparent py-0 pl-2 pr-7 text-gray-500 focus:border-transparent focus:ring-0 sm:text-sm"
+            >
+              <option value="tracking">N° de suivi</option>
+              <option value="recipient">Destinataire</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
-// Configuration des devises par pays
-const COUNTRY_CURRENCIES = {
-  'gabon': { currency: 'XAF', rate: 656 },
-  'cote-ivoire': { currency: 'XAF', rate: 656 },
-  'togo': { currency: 'XAF', rate: 656 },
-  'france': { currency: 'EUR', rate: 1 },
-  'dubai': { currency: 'USD', rate: 1.1 }
-};
-
-// Fonction pour formater les montants selon la devise
-const formatCurrency = (amount, currency) => {
-  const formatter = new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  return formatter.format(amount);
-};
-
-// Fonction pour calculer le prix total
-const calculatePrice = (parcel) => {
-  const countryConfig = COUNTRY_CURRENCIES[parcel.country.toLowerCase()] || { currency: 'EUR', rate: 1 };
-  const shippingRate = SHIPPING_RATES[parcel.shipping_type.toLowerCase()] || SHIPPING_RATES.maritime;
+const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange }) => {
+  const { data: priceData } = useParcelPrice(parcel);
   
-  // Calcul du prix en EUR
-  const basePrice = shippingRate.base_rate;
-  const weightPrice = parcel.weight * shippingRate.weight_rate;
-  const totalEUR = basePrice + weightPrice;
-  
-  // Conversion dans la devise locale
-  const totalLocal = totalEUR * countryConfig.rate;
-  
-  return {
-    amount: totalLocal,
-    currency: countryConfig.currency
-  };
+  return (
+    <tr key={parcel.id} className="bg-white">
+      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500">
+        {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
+        {parcel.tracking_number}
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm">
+        <div className="text-gray-900">{parcel.recipient_name}</div>
+        <div className="text-gray-500 text-xs mt-1">{parcel.recipient_phone}</div>
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        {getCountryFlag(parcel.country)}
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        {parcel.shipping_type}
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        {parcel.weight} kg
+      </td>
+      <td className="whitespace-nowrap px-3 py-4">
+        <select
+          value={parcel.status}
+          onChange={(e) => onStatusChange(parcel, e.target.value)}
+          className={`appearance-none rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(parcel.status)} focus:outline-none`}
+        >
+          {STATUSES.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+        {priceData?.formatted || '-'}
+      </td>
+      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+        <button
+          onClick={() => onViewDetails(parcel)}
+          className="text-indigo-600 hover:text-indigo-900"
+        >
+          •••
+        </button>
+      </td>
+    </tr>
+  );
 };
 
 export default function ParcelList() {
@@ -126,9 +160,13 @@ export default function ParcelList() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [parcels, setParcels] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchType, setSearchType] = useState('tracking'); // 'tracking' ou 'recipient'
 
   useEffect(() => {
-    fetchParcels();
+    const delayDebounceFn = setTimeout(() => {
+      fetchParcels();
+    }, 300);
 
     // Souscrire aux changements de la table parcels
     const subscription = supabase
@@ -156,11 +194,11 @@ export default function ParcelList() {
       )
       .subscribe();
 
-    // Nettoyer la subscription lors du démontage du composant
     return () => {
+      clearTimeout(delayDebounceFn);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [searchQuery, searchType]);
 
   const fetchParcels = async () => {
     let query = supabase
@@ -169,6 +207,7 @@ export default function ParcelList() {
         id,
         tracking_number,
         recipient_name,
+        recipient_phone,
         country,
         shipping_type,
         weight,
@@ -181,21 +220,22 @@ export default function ParcelList() {
       .order('created_at', { ascending: false });
 
     if (searchQuery) {
-      query = query.ilike('tracking_number', `%${searchQuery}%`);
+      if (searchType === 'tracking') {
+        query = query.ilike('tracking_number', `%${searchQuery}%`);
+      } else {
+        query = query.ilike('recipient_name', `%${searchQuery}%`);
+      }
     }
 
     const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching parcels:', error);
-      throw new Error('Erreur lors de la récupération des colis');
+      toast.error('Erreur lors de la récupération des colis');
+      return;
     }
 
     setParcels(data || []);
-  };
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
   };
 
   const handleStatusChange = async (parcel, newStatus) => {
@@ -295,7 +335,7 @@ export default function ParcelList() {
     setSelectedParcel(null);
   };
 
-  if (!parcels.length) {
+  if (!parcels.length && !searchQuery) {
     return (
       <div className="min-h-screen bg-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -324,32 +364,15 @@ export default function ParcelList() {
         {/* Liste des colis récents */}
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
+          {renderSearchSection()}
           <div className="mt-4">
-            <div className="mt-4 flex justify-between items-center">
-              <div className="flex-1" />
-              <div className="w-96">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Rechercher par numéro de suivi"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    className="block w-full rounded-md border-gray-300 pl-10 pr-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div className="mt-8">
               <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div className="inline-block min-w-full py-2 align-middle">
                   <table className="min-w-full divide-y divide-gray-300">
                     <thead>
                       <tr>
-                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">
+                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
                           Date
                         </th>
                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -380,50 +403,12 @@ export default function ParcelList() {
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {parcels.map((parcel) => (
-                        <tr key={parcel.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500">
-                            {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
-                            {parcel.tracking_number}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                            {parcel.recipient_name}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {getCountryFlag(parcel.country)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {parcel.shipping_type}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {parcel.weight} kg
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4">
-                            <select
-                              value={parcel.status}
-                              onChange={(e) => handleStatusChange(parcel, e.target.value)}
-                              className={`appearance-none rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(parcel.status)} focus:outline-none`}
-                            >
-                              {STATUSES.map((status) => (
-                                <option key={status.value} value={status.value}>
-                                  {status.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                            {formatCurrency(calculatePrice(parcel).amount, calculatePrice(parcel).currency)}
-                          </td>
-                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <button
-                              onClick={() => handleViewDetails(parcel)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              •••
-                            </button>
-                          </td>
-                        </tr>
+                        <ParcelTableRow 
+                          key={parcel.id}
+                          parcel={parcel}
+                          onViewDetails={handleViewDetails}
+                          onStatusChange={handleStatusChange}
+                        />
                       ))}
                     </tbody>
                   </table>
