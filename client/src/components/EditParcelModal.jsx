@@ -12,7 +12,7 @@ export default function EditParcelModal({ isOpen, onClose, parcel, onSuccess }) 
     recipient_address: '',
     weight: '',
     shipping_type: '',
-    special_instructions: ''
+    instructions: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,7 +26,7 @@ export default function EditParcelModal({ isOpen, onClose, parcel, onSuccess }) 
         recipient_address: parcel.recipient_address || '',
         weight: parcel.weight || '',
         shipping_type: parcel.shipping_type || '',
-        special_instructions: parcel.special_instructions || ''
+        instructions: parcel.instructions || ''
       });
     }
   }, [parcel]);
@@ -45,7 +45,7 @@ export default function EditParcelModal({ isOpen, onClose, parcel, onSuccess }) 
           recipient_address: formData.recipient_address,
           weight: parseFloat(formData.weight),
           shipping_type: formData.shipping_type,
-          special_instructions: formData.special_instructions
+          instructions: formData.instructions
         })
         .eq('id', parcel.id);
 
@@ -201,13 +201,13 @@ export default function EditParcelModal({ isOpen, onClose, parcel, onSuccess }) 
                         </select>
                       </div>
                       <div>
-                        <label htmlFor="special_instructions" className="block text-sm font-medium text-gray-700">
-                          Instructions spéciales
+                        <label htmlFor="instructions" className="block text-sm font-medium text-gray-700">
+                          Instructions
                         </label>
                         <textarea
-                          name="special_instructions"
-                          id="special_instructions"
-                          value={formData.special_instructions}
+                          name="instructions"
+                          id="instructions"
+                          value={formData.instructions}
                           onChange={handleChange}
                           rows={3}
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
