@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@config/supabaseClient';
+import { supabase } from '../config/supabaseClient';
 
 const MODULES = {
   dashboard: { name: 'Tableau de bord', permissions: ['view', 'export'] },
