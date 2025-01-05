@@ -9,11 +9,12 @@ import DeleteParcelModal from '../../components/DeleteParcelModal';
 import ParcelActionsMenu from '../../components/ParcelActionsMenu';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/20/solid';
+import { MagnifyingGlassIcon, EllipsisHorizontalIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useParcelPrice } from '../../hooks/useParcelPrice';
 import { generateInvoice } from '../../services/invoiceService';
+import PDFViewer from '../../components/PDFViewer';
 
 const COUNTRIES = {
   gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
@@ -68,41 +69,100 @@ const getCountryFlag = (countryCode) => {
   return countryCode;
 };
 
-const renderSearchSection = () => (
-  <div className="mb-6">
-    <div className="max-w-3xl mx-auto">
-      <div className={`relative rounded-lg shadow-sm`}>
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-        </div>
-        
-        <input
-          type="text"
-          name="search"
-          className="block w-full rounded-lg border-gray-300 pl-10 pr-32 focus:outline-none focus:ring-0 focus:border-gray-300 sm:text-sm h-12"
-          placeholder="Rechercher par numéro de suivi..."
-          value=""
-          onChange={() => {}}
-          onFocus={() => {}}
-          onBlur={() => {}}
-        />
-        
-        <div className="absolute inset-y-0 right-0 flex items-center">
-          <div className="h-full flex items-center border-l border-gray-300">
-            <select
-              value="tracking"
-              onChange={(e) => {}}
-              className="h-full border-transparent bg-transparent py-0 pl-2 pr-7 text-gray-500 focus:border-transparent focus:ring-0 sm:text-sm"
-            >
-              <option value="tracking">N° de suivi</option>
-              <option value="recipient">Destinataire</option>
-            </select>
+const SearchBar = ({ searchQuery, searchType, onSearchChange, onSearchTypeChange, isSearchFocused, setIsSearchFocused }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const getPlaceholder = () => {
+    switch (searchType) {
+      case 'tracking':
+        return 'Rechercher par numéro de suivi...';
+      case 'recipient':
+        return 'Rechercher par nom du destinataire...';
+      case 'phone':
+        return 'Rechercher par téléphone...';
+      default:
+        return 'Rechercher...';
+    }
+  };
+
+  return (
+    <div className="mb-6 px-4 sm:px-6 lg:px-8">
+      <div className="relative max-w-3xl mx-auto">
+        {/* Mobile search trigger */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="md:hidden w-full flex items-center text-left space-x-3 px-4 h-12 bg-white ring-1 ring-slate-900/10 hover:ring-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm rounded-lg text-slate-400"
+        >
+          <MagnifyingGlassIcon className="h-5 w-5" />
+          <span className="flex-auto">Rechercher un colis...</span>
+        </button>
+
+        {/* Search input - hidden on mobile unless expanded */}
+        <div className={`${isExpanded ? 'absolute inset-x-0 top-0' : 'hidden'} md:block z-50`}>
+          <div className="flex bg-white rounded-lg shadow-sm ring-1 ring-slate-900/10">
+            <div className="flex-auto">
+              <div className="relative">
+                <MagnifyingGlassIcon 
+                  className="pointer-events-none absolute top-3 left-4 h-5 w-5 text-slate-400" 
+                  aria-hidden="true" 
+                />
+                <input
+                  type="text"
+                  className="block w-full rounded-l-lg border-0 py-3 pl-12 pr-4 text-slate-900 ring-0 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm"
+                  placeholder={getPlaceholder()}
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    className="absolute right-2 top-3 text-gray-400 hover:text-gray-500"
+                  >
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center border-l border-slate-200">
+              <select
+                value={searchType}
+                onChange={(e) => onSearchTypeChange(e.target.value)}
+                className="h-full rounded-r-lg border-0 bg-transparent py-0 pl-3 pr-7 text-gray-500 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm"
+              >
+                <option value="tracking">N° de suivi</option>
+                <option value="recipient">Destinataire</option>
+                <option value="phone">Téléphone</option>
+              </select>
+            </div>
+            {/* Close button on mobile */}
+            <div className="md:hidden flex items-center pr-2">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="p-2 text-slate-400 hover:text-slate-500"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
           </div>
+          
+          {/* Search suggestions panel */}
+          {isSearchFocused && searchQuery && (
+            <div className="absolute top-full left-0 right-0 bg-white mt-1 rounded-lg shadow-lg border border-gray-200 max-h-64 overflow-auto">
+              <div className="p-2 text-sm text-gray-500">
+                Recherche en cours...
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange, onEdit, onDelete, onViewInvoice }) => {
   const { data: priceData } = useParcelPrice(parcel);
@@ -148,7 +208,7 @@ const ParcelTableRow = ({ parcel, onViewDetails, onStatusChange, onEdit, onDelet
         <ParcelActionsMenu
           onEdit={() => onEdit(parcel)}
           onDelete={() => onDelete(parcel)}
-          onViewInvoice={() => onViewInvoice(parcel, priceData)}
+          onViewInvoice={() => onViewInvoice(parcel)}
           onViewDetails={() => onViewDetails(parcel)}
         />
       </td>
@@ -168,6 +228,8 @@ export default function ParcelList() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchType, setSearchType] = useState('tracking');
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   const fetchParcels = async () => {
     let query = supabase
@@ -191,8 +253,10 @@ export default function ParcelList() {
     if (searchQuery) {
       if (searchType === 'tracking') {
         query = query.ilike('tracking_number', `%${searchQuery}%`);
-      } else {
+      } else if (searchType === 'recipient') {
         query = query.ilike('recipient_name', `%${searchQuery}%`);
+      } else if (searchType === 'phone') {
+        query = query.ilike('recipient_phone', `%${searchQuery}%`);
       }
     }
 
@@ -414,8 +478,17 @@ export default function ParcelList() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleViewInvoice = (parcel, priceData) => {
-    generateInvoice(parcel, priceData);
+  const handleViewInvoice = async (parcel) => {
+    try {
+      const pdfDoc = await generateInvoice(parcel);
+      const pdfBlob = pdfDoc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      setPdfUrl(pdfUrl);
+      setShowPDFViewer(true);
+    } catch (error) {
+      console.error('Erreur lors de la génération de la facture:', error);
+      toast.error('Impossible de générer la facture');
+    }
   };
 
   const handleEditSuccess = () => {
@@ -427,6 +500,18 @@ export default function ParcelList() {
   const closeDrawer = () => {
     setIsModalOpen(false);
     setSelectedParcel(null);
+  };
+
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    // Rafraîchir la requête avec le nouveau terme de recherche
+    queryClient.invalidateQueries(['parcels']);
+  };
+
+  const handleSearchTypeChange = (value) => {
+    setSearchType(value);
+    setSearchQuery(''); // Réinitialiser la recherche lors du changement de type
+    queryClient.invalidateQueries(['parcels']);
   };
 
   if (!parcels.length && !searchQuery) {
@@ -451,7 +536,7 @@ export default function ParcelList() {
   }
 
   return (
-    <div className="overflow-hidden">
+    <>
       {/* Filtres mobiles */}
       <div className="block sm:hidden p-4 bg-gray-50 border-b">
         <select
@@ -461,6 +546,7 @@ export default function ParcelList() {
         >
           <option value="tracking">N° de suivi</option>
           <option value="recipient">Destinataire</option>
+          <option value="phone">Téléphone</option>
         </select>
       </div>
 
@@ -521,57 +607,68 @@ export default function ParcelList() {
       <div className="hidden sm:block">
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
-          {renderSearchSection()}
+          <SearchBar
+            searchQuery={searchQuery}
+            searchType={searchType}
+            onSearchChange={handleSearchChange}
+            onSearchTypeChange={handleSearchTypeChange}
+            isSearchFocused={isSearchFocused}
+            setIsSearchFocused={setIsSearchFocused}
+          />
           <div className="mt-4">
             <div className="mt-8">
               <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div className="inline-block min-w-full py-2 align-middle">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead>
-                      <tr>
-                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                          Date
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Numéro de suivi
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Destinataire
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Pays
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Type d'envoi
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Poids / CBM
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Statut
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Prix Total
-                        </th>
-                        <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {parcels.map((parcel) => (
-                        <ParcelTableRow 
-                          key={parcel.id}
-                          parcel={parcel}
-                          onViewDetails={handleViewDetails}
-                          onStatusChange={handleStatusChange}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          onViewInvoice={handleViewInvoice}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="w-full overflow-x-auto px-4 md:px-6 lg:px-8">
+                    <div className="min-w-full bg-white rounded-lg shadow">
+                      <table className="min-w-full table-auto">
+                        <thead>
+                          <tr>
+                            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                              Date
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Numéro de suivi
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Destinataire
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Pays
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Type d'envoi
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Poids / CBM
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Statut
+                            </th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Prix Total
+                            </th>
+                            <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                              <span className="sr-only">Actions</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {parcels.map((parcel) => (
+                            <ParcelTableRow 
+                              key={parcel.id}
+                              parcel={parcel}
+                              onViewDetails={handleViewDetails}
+                              onStatusChange={handleStatusChange}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              onViewInvoice={handleViewInvoice}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -613,6 +710,17 @@ export default function ParcelList() {
         onConfirm={handleConfirmDelete}
         parcel={selectedParcel}
       />
-    </div>
+      
+      {showPDFViewer && pdfUrl && (
+        <PDFViewer
+          url={pdfUrl}
+          onClose={() => {
+            setShowPDFViewer(false);
+            URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(null);
+          }}
+        />
+      )}
+    </>
   );
 }
