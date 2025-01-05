@@ -1,370 +1,391 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../../config/supabaseClient';
+import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useDisputes } from '../../hooks/useDisputes';
+import { useLanguage } from '../../context/LanguageContext';
+import { Dialog } from '@headlessui/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import SearchBar from '../../components/SearchBar';
-import DisputeDetailsModal from '../../components/DisputeDetailsModal';
-import { 
-  ExclamationCircleIcon,
-  CheckCircleIcon,
-  ClockIcon
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  PlusIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { classNames } from '../../utils/classNames';
 
-const priorityColors = {
-  low: 'bg-blue-100 text-blue-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  high: 'bg-orange-100 text-orange-800',
-  urgent: 'bg-red-100 text-red-800'
-};
+// Composant de modal pour créer/éditer un litige
+function DisputeModal({ isOpen, onClose, dispute = null, onSubmit }) {
+  const [formData, setFormData] = useState(
+    dispute || {
+      title: '',
+      description: '',
+      priority: 'medium',
+      status: 'open',
+      parcel_id: '',
+      resolution_notes: '',
+    }
+  );
 
-const statusIcons = {
-  pending: ClockIcon,
-  in_progress: ExclamationCircleIcon,
-  resolved: CheckCircleIcon
-};
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+    onClose();
+  };
 
-const statusColors = {
-  pending: 'text-yellow-500',
-  in_progress: 'text-blue-500',
-  resolved: 'text-green-500'
-};
+  return (
+    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="mx-auto max-w-lg rounded-xl bg-white p-6">
+          <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 mb-4">
+            {dispute ? 'Modifier le litige' : 'Nouveau litige'}
+          </Dialog.Title>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Titre
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, title: e.target.value }))
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, description: e.target.value }))
+                }
+                rows={3}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Priorité
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, priority: e.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  {Object.entries(DISPUTE_PRIORITIES).map(([key, { label }]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Statut
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, status: e.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  {Object.entries(DISPUTE_STATUSES).map(([key, { label }]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {formData.status === 'resolved' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Notes de résolution
+                </label>
+                <textarea
+                  value={formData.resolution_notes}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      resolution_notes: e.target.value,
+                    }))
+                  }
+                  rows={2}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+              </div>
+            )}
+            <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+              <button
+                type="submit"
+                className="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-2 sm:text-sm"
+              >
+                {dispute ? 'Mettre à jour' : 'Créer'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+}
 
 export default function Disputes() {
-  const [disputes, setDisputes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDispute, setSelectedDispute] = useState(null);
+  const { user } = useAuth();
+  const { t } = useLanguage();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDispute, setSelectedDispute] = useState(null);
+  const {
+    disputes,
+    isLoading,
+    error,
+    createDispute,
+    updateDispute,
+    deleteDispute,
+    searchQuery,
+    handleSearch,
+    filters,
+    handleFilterChange,
+    DISPUTE_PRIORITIES,
+    DISPUTE_STATUSES,
+  } = useDisputes(user?.id);
 
-  useEffect(() => {
-    fetchDisputes();
-  }, []);
-
-  // Fonction utilitaire pour la conversion sécurisée en chaîne
-  const safeString = (value) => {
-    if (value === null || value === undefined) return '';
-    return String(value).toLowerCase();
+  const handleCreateDispute = (formData) => {
+    createDispute.mutate(formData);
   };
 
-  const handleSearch = (e) => {
-    // S'assurer que la valeur est toujours une chaîne
-    const newValue = e?.target?.value ?? '';
-    setSearchQuery(newValue);
+  const handleUpdateDispute = (formData) => {
+    updateDispute.mutate({ id: selectedDispute.id, ...formData });
   };
 
-  const filteredDisputes = disputes.filter(dispute => {
-    // Convertir la recherche en chaîne de manière sécurisée
-    const search = safeString(searchQuery);
-    if (!search) return true;
-    
-    // Vérifier si le litige existe
-    if (!dispute) return false;
-
-    // Récupérer l'objet parcels de manière sécurisée
-    const parcels = dispute.parcels ?? {};
-
-    // Convertir toutes les valeurs en chaînes de manière sécurisée
-    const trackingNumber = safeString(parcels.tracking_number);
-    const recipientName = safeString(parcels.recipient_name);
-    const description = safeString(dispute.description);
-
-    // Vérifier si l'un des champs contient le terme de recherche
-    return (
-      trackingNumber.includes(search) ||
-      recipientName.includes(search) ||
-      description.includes(search)
-    );
-  });
-
-  const fetchDisputes = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(`
-          id,
-          parcel_id,
-          description,
-          status,
-          priority,
-          created_at,
-          updated_at,
-          parcels (
-            tracking_number,
-            recipient_name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDisputes(data || []);
-    } catch (error) {
-      console.error('Error fetching disputes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRowClick = (dispute) => {
+  const handleOpenModal = (dispute = null) => {
     setSelectedDispute(dispute);
     setIsModalOpen(true);
   };
 
-  const updateDisputeStatus = async (id, newStatus) => {
-    try {
-      const { error } = await supabase
-        .from('disputes')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', id);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
 
-      if (error) throw error;
-      fetchDisputes();
-    } catch (error) {
-      console.error('Error updating dispute status:', error);
-    }
-  };
-
-  const updateDisputePriority = async (id, newPriority) => {
-    try {
-      const { error } = await supabase
-        .from('disputes')
-        .update({ priority: newPriority, updated_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) throw error;
-      fetchDisputes();
-    } catch (error) {
-      console.error('Error updating dispute priority:', error);
-    }
-  };
+  if (error) {
+    return (
+      <div className="text-center text-red-600">
+        Une erreur est survenue: {error.message}
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">
-            Litiges
-          </h1>
+          <h1 className="text-xl font-semibold text-gray-900">Litiges</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Liste des colis en litige et suivi des dossiers
+            Liste des litiges et réclamations
           </p>
+        </div>
+        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+          <button
+            type="button"
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
+          >
+            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+            Nouveau litige
+          </button>
         </div>
       </div>
 
-      {/* Barre de recherche */}
-      <div className="mt-4 mb-6">
-        <SearchBar
-          placeholder="Rechercher par N° de suivi, destinataire ou description..."
-          value={searchQuery}
-          onChange={handleSearch}
-          onSearch={handleSearch}
-        />
-      </div>
-
-      {/* Vue mobile */}
-      <div className="block sm:hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : filteredDisputes.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">
-            Aucun litige trouvé
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredDisputes.map((dispute) => {
-              const StatusIcon = statusIcons[dispute.status];
-              return (
-                <div key={dispute.id} className="bg-white shadow rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        {dispute.parcels?.tracking_number}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {dispute.parcels?.recipient_name}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleRowClick(dispute)}
-                      className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
-                    >
-                      Voir
-                    </button>
+      <div className="mt-8 flex flex-col">
+        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex-1 max-w-sm">
+                <label htmlFor="search" className="sr-only">
+                  Rechercher
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <MagnifyingGlassIcon
+                      className="h-5 w-5 text-gray-400"
+                      aria-hidden="true"
+                    />
                   </div>
-
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs text-gray-500">Priorité</label>
-                        <select
-                          value={dispute.priority}
-                          onChange={(e) => updateDisputePriority(dispute.id, e.target.value)}
-                          className={`mt-1 block w-full rounded-md text-xs font-medium ${priorityColors[dispute.priority]}`}
-                        >
-                          <option value="low">Faible</option>
-                          <option value="medium">Moyenne</option>
-                          <option value="high">Haute</option>
-                          <option value="urgent">Urgente</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500">Statut</label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <select
-                            value={dispute.status}
-                            onChange={(e) => updateDisputeStatus(dispute.id, e.target.value)}
-                            className="block w-full rounded-md border-gray-300 text-sm"
-                          >
-                            <option value="pending">En attente</option>
-                            <option value="in_progress">En cours</option>
-                            <option value="resolved">Résolu</option>
-                          </select>
-                          <StatusIcon 
-                            className={`h-5 w-5 ${statusColors[dispute.status]}`}
-                            aria-hidden="true"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-200 pt-4">
-                    <label className="text-xs text-gray-500">Description</label>
-                    <p className="mt-1 text-sm text-gray-900">{dispute.description}</p>
-                  </div>
-
-                  <div className="border-t border-gray-200 pt-4">
-                    <label className="text-xs text-gray-500">Date de création</label>
-                    <p className="mt-1 text-sm text-gray-900">
-                      {format(new Date(dispute.created_at), 'dd MMMM yyyy', { locale: fr })}
-                    </p>
-                  </div>
+                  <input
+                    type="search"
+                    name="search"
+                    id="search"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    className="block w-full rounded-md border-gray-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    placeholder="Rechercher un litige..."
+                  />
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Vue desktop */}
-      <div className="hidden sm:block">
-        <div className="mt-8 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                        Colis
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        Priorité
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        Statut
-                      </th>
-                      <th scope="col" className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        Description
-                      </th>
-                      <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        Date de création
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {loading ? (
-                      <tr>
-                        <td colSpan="6" className="text-center py-4">
-                          <div className="flex justify-center items-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : filteredDisputes.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="text-center py-4 text-gray-500">
-                          Aucun litige trouvé
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredDisputes.map((dispute) => {
-                        const StatusIcon = statusIcons[dispute.status];
-                        return (
-                          <tr key={dispute.id}>
-                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                              <div className="font-medium text-gray-900">
-                                {dispute.parcels?.tracking_number}
-                              </div>
-                              <div className="text-gray-500">
-                                {dispute.parcels?.recipient_name}
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm">
-                              <select
-                                value={dispute.priority}
-                                onChange={(e) => updateDisputePriority(dispute.id, e.target.value)}
-                                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityColors[dispute.priority]}`}
-                              >
-                                <option value="low">Faible</option>
-                                <option value="medium">Moyenne</option>
-                                <option value="high">Haute</option>
-                                <option value="urgent">Urgente</option>
-                              </select>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm">
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={dispute.status}
-                                  onChange={(e) => updateDisputeStatus(dispute.id, e.target.value)}
-                                  className="rounded-md border-gray-300 text-sm"
-                                >
-                                  <option value="pending">En attente</option>
-                                  <option value="in_progress">En cours</option>
-                                  <option value="resolved">Résolu</option>
-                                </select>
-                                <StatusIcon 
-                                  className={`h-5 w-5 ${statusColors[dispute.status]}`}
-                                  aria-hidden="true"
-                                />
-                              </div>
-                            </td>
-                            <td className="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {dispute.description}
-                            </td>
-                            <td className="hidden lg:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {format(new Date(dispute.created_at), 'dd MMMM yyyy', { locale: fr })}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              <button
-                                onClick={() => handleRowClick(dispute)}
-                                className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
-                              >
-                                Voir les détails
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
               </div>
+
+              <div className="ml-4 flex items-center space-x-4">
+                <select
+                  value={filters.priority}
+                  onChange={(e) =>
+                    handleFilterChange({ priority: e.target.value })
+                  }
+                  className="rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="">Toutes les priorités</option>
+                  {Object.entries(DISPUTE_PRIORITIES).map(([key, { label }]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange({ status: e.target.value })}
+                  className="rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="">Tous les statuts</option>
+                  {Object.entries(DISPUTE_STATUSES).map(([key, { label }]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                    >
+                      Titre
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Priorité
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Statut
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Date de création
+                    </th>
+                    <th
+                      scope="col"
+                      className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                    >
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {disputes.map((dispute) => (
+                    <tr key={dispute.id}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                        <div className="font-medium text-gray-900">
+                          {dispute.title}
+                        </div>
+                        <div className="text-gray-500">
+                          {dispute.parcels?.tracking_number}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <span
+                          className={classNames(
+                            DISPUTE_PRIORITIES[dispute.priority].color,
+                            'inline-flex rounded-full px-2 text-xs font-semibold leading-5'
+                          )}
+                        >
+                          {DISPUTE_PRIORITIES[dispute.priority].label}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <span
+                          className={classNames(
+                            DISPUTE_STATUSES[dispute.status].color,
+                            'inline-flex rounded-full px-2 text-xs font-semibold leading-5'
+                          )}
+                        >
+                          {DISPUTE_STATUSES[dispute.status].label}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {format(new Date(dispute.created_at), 'Pp', {
+                          locale: fr,
+                        })}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <button
+                          onClick={() => handleOpenModal(dispute)}
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                'Êtes-vous sûr de vouloir supprimer ce litige ?'
+                              )
+                            ) {
+                              deleteDispute.mutate(dispute.id);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de détails */}
-      <DisputeDetailsModal
+      <DisputeModal
         isOpen={isModalOpen}
-        setIsOpen={setIsModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedDispute(null);
+        }}
         dispute={selectedDispute}
+        onSubmit={selectedDispute ? handleUpdateDispute : handleCreateDispute}
       />
     </div>
   );

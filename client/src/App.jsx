@@ -28,7 +28,6 @@ const Clients = lazy(() => import('./pages/dashboard/Clients'));
 const Profile = lazy(() => import('./pages/dashboard/Profile'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Disputes = lazy(() => import('./pages/dashboard/Disputes'));
-const Litiges = lazy(() => import('./pages/dashboard/Litiges'));
 
 export default function App() {
   return (
@@ -67,7 +66,6 @@ export default function App() {
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="disputes" element={<Disputes />} />
-                  <Route path="litiges" element={<Litiges />} />
                 </Route>
 
                 {/* Redirection des routes inconnues vers la page de connexion */}

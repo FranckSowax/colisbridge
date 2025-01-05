@@ -7,7 +7,8 @@ import {
   HomeIcon, 
   UsersIcon, 
   ChartBarIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 export function DashboardLayout() {
@@ -29,6 +30,7 @@ export function DashboardLayout() {
     { name: t('navigation.parcels'), href: '/dashboard/parcels', icon: ArchiveBoxIcon },
     { name: t('navigation.clients'), href: '/dashboard/clients', icon: UsersIcon },
     { name: t('navigation.statistics'), href: '/dashboard/statistics', icon: ChartBarIcon },
+    { name: t('navigation.disputes'), href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
   ];
 
   const userNavigation = [
