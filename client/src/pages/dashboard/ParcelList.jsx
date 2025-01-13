@@ -1,20 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../config/supabaseClient';
-import ParcelDetailsModal from '../../components/ParcelDetailsModal';
-import DisputeModal from '../../components/DisputeModal';
-import EditParcelModal from '../../components/EditParcelModal';
-import DeleteParcelModal from '../../components/DeleteParcelModal';
-import ParcelActionsMenu from '../../components/ParcelActionsMenu';
-import { useAuth } from '../../context/AuthContext';
+import { supabase } from '@/config/supabaseConfig';
+import ParcelDetailsModal from '@/components/ParcelDetailsModal';
+import DisputeModal from '@/components/DisputeModal';
+import EditParcelModal from '@/components/EditParcelModal';
+import DeleteParcelModal from '@/components/DeleteParcelModal';
+import ParcelActionsMenu from '@/components/ParcelActionsMenu';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, EllipsisHorizontalIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useParcelPrice } from '../../hooks/useParcelPrice';
-import { generateInvoice } from '../../services/invoiceService';
-import PDFViewer from '../../components/PDFViewer';
+import { useParcelPrice } from '@/hooks/useParcelPrice';
+import { generateInvoice } from '@/services/invoiceService';
+import PDFViewer from '@/components/PDFViewer';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
 
 const COUNTRIES = {
