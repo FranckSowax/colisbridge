@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-const LanguageContext = createContext();
+import i18next from 'i18next';
+import { initReactI18next, useTranslation } from 'react-i18next';
 
 const translations = {
   fr: {
@@ -174,36 +174,136 @@ const translations = {
     'parcels.form.upload.button': 'Upload photos',
     'parcels.form.upload.dragndrop': 'or drag and drop',
     'parcels.form.upload.formats': 'PNG, JPG up to 10MB',
+  },
+  zh: {
+    // Navigation
+    'navigation.dashboard': '',
+    'navigation.parcels': '',
+    'navigation.clients': '',
+    'navigation.statistics': '',
+    'navigation.disputes': '',
+    'navigation.profile': '',
+    'navigation.settings': '',
+    'navigation.logout': '',
+    
+    // Dashboard
+    'dashboard.welcome': '',
+    'dashboard.recent_parcels': '',
+    'dashboard.no_recent_parcels': '',
+    'dashboard.status.recu': '',
+    'dashboard.status.expedie': '',
+    'dashboard.status.termine': '',
+    'dashboard.status.litige': '',
+    
+    // Actions
+    'actions.create_parcel': '',
+    'actions.retry': '',
+    'actions.refresh': '',
+    'actions.try_again': '',
+    
+    // Loading states
+    'loading.dashboard_data': '',
+    'loading.please_wait': '',
+    
+    // Errors
+    'errors.not_authenticated': '',
+    'errors.loading_failed': '',
+    'errors.dashboard_loading_failed': '',
+    'errors.something_went_wrong': '',
+    'errors.component_error': '',
+    'errors.auth_check_failed': '',
+    'errors.signout_failed': '',
+    
+    // Success messages
+    'success.parcel_created': '',
+    
+    // Parcel Form
+    'parcels.form.title': '',
+    'parcels.form.recipientName': '',
+    'parcels.form.recipientEmail': '',
+    'parcels.form.recipientPhone': '',
+    'parcels.form.recipientAddress': '',
+    'parcels.form.recipient.search': '',
+    'parcels.form.recipient.new': '',
+    'parcels.form.recipient.select': '',
+    'parcels.form.shippingType': '',
+    'parcels.form.shippingType.standard': '',
+    'parcels.form.shippingType.express': '',
+    'parcels.form.shippingType.maritime': '',
+    'parcels.form.country': '',
+    'parcels.form.country.france': '',
+    'parcels.form.country.gabon': '',
+    'parcels.form.country.togo': '',
+    'parcels.form.country.cote_ivoire': '',
+    'parcels.form.country.dubai': '',
+    'parcels.form.city': '',
+    'parcels.form.postalCode': '',
+    'parcels.form.weight': '',
+    'parcels.form.dimensions': '',
+    'parcels.form.cbm': '',
+    'parcels.form.price': '',
+    'parcels.form.specialInstructions': '',
+    'parcels.form.photos.label': '',
+    'parcels.form.photos.upload': '',
+    'parcels.form.photos.dragDrop': '',
+    'parcels.form.photos.formats': '',
+    'parcels.form.submit': '',
+    'parcels.form.cancel': '',
+    'parcels.form.shipping.calculating': '',
+    'parcels.form.errors.photoLimit': '',
+    'parcels.form.errors.cbmRequired': '',
+    'parcels.form.errors.weightRequired': '',
+    'parcels.form.errors.priceCalculation': '',
+    'parcels.form.errors.recipientCreation': '',
+    'parcels.form.errors.recipientSelection': '',
+    // Photo Upload
+    'parcels.form.upload.button': '',
+    'parcels.form.upload.dragndrop': '',
+    'parcels.form.upload.formats': '',
   }
 };
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'fr';
+// Initialize i18next
+i18next
+  .use(initReactI18next)
+  .init({
+    resources: {
+      fr: { translation: translations.fr },
+      en: { translation: translations.en },
+      zh: { translation: translations.zh }
+    },
+    lng: localStorage.getItem('language') || 'en',
+    fallbackLng: 'en',
+    interpolation: {
+      escapeValue: false
+    }
   });
-  const [loading, setLoading] = useState(true);
+
+const LanguageContext = createContext();
+
+export function LanguageProvider({ children }) {
+  const [language, setLanguage] = useState(localStorage.getItem('language') || 'en');
+  const { i18n } = useTranslation();
+
+  const changeLanguage = (newLanguage) => {
+    setLanguage(newLanguage);
+    localStorage.setItem('language', newLanguage);
+    i18n.changeLanguage(newLanguage);
+  };
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem('language');
-    if (savedLanguage && translations[savedLanguage]) {
-      setLanguage(savedLanguage);
+    if (savedLanguage) {
+      changeLanguage(savedLanguage);
     }
-    setLoading(false);
   }, []);
 
-  const changeLanguage = (newLanguage) => {
-    if (translations[newLanguage]) {
-      setLanguage(newLanguage);
-      localStorage.setItem('language', newLanguage);
-    }
-  };
-
   const t = (key) => {
-    return translations[language]?.[key] || key;
+    return i18next.t(key);
   };
 
   return (
-    <LanguageContext.Provider value={{ language, changeLanguage, t, loading }}>
+    <LanguageContext.Provider value={{ language, changeLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -211,7 +311,7 @@ export function LanguageProvider({ children }) {
 
 export function useLanguage() {
   const context = useContext(LanguageContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;

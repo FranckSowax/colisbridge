@@ -38,12 +38,12 @@ const navigation = [
   { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
   { name: 'Litiges', href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
   { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon },
+  { name: 'Mon Profil', href: '/dashboard/profile', icon: UserIcon },
   { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ];
 
 const userNavigation = [
   { name: 'Mon profil', href: '/dashboard/profile', icon: UserIcon },
-  { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
   { name: 'Déconnexion', href: '#', icon: ArrowRightOnRectangleIcon },
 ];
 

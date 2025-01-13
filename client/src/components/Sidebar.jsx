@@ -6,7 +6,9 @@ import {
   UsersIcon, 
   ExclamationTriangleIcon,
   ChartBarIcon,
-  UserCircleIcon 
+  UserCircleIcon,
+  Cog6ToothIcon,
+  ArrowLeftOnRectangleIcon
 } from '@heroicons/react/24/outline/index.js';
 
 const navigation = [
@@ -15,7 +17,9 @@ const navigation = [
   { name: 'Clients', href: '/dashboard/customers', icon: UsersIcon },
   { name: 'Litiges', href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
   { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon },
-  { name: 'Profil', href: '/dashboard/profile', icon: UserCircleIcon },
+  { name: 'Mon Profil', href: '/dashboard/profile', icon: UserCircleIcon },
+  { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
+  { name: 'Déconnexion', href: '/logout', icon: ArrowLeftOnRectangleIcon }
 ];
 
 const Sidebar = () => {

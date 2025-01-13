@@ -1,42 +1,86 @@
 {
   "common": {
+    "search": "搜索",
+    "previous": "上一页",
+    "next": "下一页",
     "save": "保存",
     "cancel": "取消",
     "edit": "编辑",
     "delete": "删除",
+    "create": "创建",
+    "actions": "操作",
     "loading": "加载中...",
     "success": "成功",
     "error": "错误",
-    "actions": "操作",
     "openMenu": "打开菜单"
   },
-  "navigation": {
+  "nav": {
     "dashboard": "仪表板",
     "parcels": "包裹",
-    "clients": "客户",
     "settings": "设置",
     "profile": "个人资料",
-    "logout": "退出登录",
-    "statistics": "统计",
-    "disputes": "争议"
+    "logout": "退出"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "recentParcels": "最近包裹",
+    "monthlyEvolution": "月度统计",
+    "parcelDistribution": "包裹分布",
+    "columns": {
+      "trackingNumber": "追踪号码",
+      "creationDate": "创建日期",
+      "recipient": "收件人",
+      "status": "状态",
+      "reference": "参考编号",
+      "sender": "发件人",
+      "destination": "目的地",
+      "date": "日期"
+    }
   },
   "parcels": {
-    "title": "我的包裹",
+    "title": "包裹管理",
+    "description": "所有包裹的列表及其详细信息和状态",
+    "add": "添加包裹",
     "newParcel": "新包裹",
     "tracking": "跟踪号码",
     "recipient": "收件人",
     "date": "日期",
     "type": "类型",
     "status": "状态",
-    "actions": "操作",
     "viewInvoice": "查看发票",
     "viewDetails": "查看详情",
+    "errorLoadingParcels": "加载包裹时出错",
+    "disputeCreated": "争议已成功创建",
+    "errorCreatingDispute": "创建争议时出错",
+    "statusUpdated": "状态已更新：{{status}}",
+    "errorUpdatingStatus": "更新状态时出错",
     "status": {
-      "received": "已收到",
-      "shipped": "已发货",
+      "received": "已接收",
+      "shipped": "已发送",
       "delivered": "已送达",
+      "disputed": "有争议",
+      "receptionne": "已接收",
+      "expedie": "已发送",
+      "recu": "已收到",
+      "litige": "争议",
       "completed": "已完成",
       "update": "标记为"
+    },
+    "disputeModal": {
+      "title": "创建争议",
+      "parcelInfo": "包裹信息",
+      "trackingNumber": "追踪号码",
+      "recipient": "收件人",
+      "country": "国家",
+      "description": "争议描述",
+      "descriptionPlaceholder": "请描述问题...",
+      "priority": "优先级",
+      "priorityLow": "低",
+      "priorityNormal": "正常",
+      "priorityHigh": "高",
+      "priorityUrgent": "紧急",
+      "cancel": "取消",
+      "createDispute": "创建争议"
     }
   },
   "statistics": {
@@ -50,17 +94,20 @@
   "settings": {
     "title": "设置",
     "description": "管理您的账户和应用程序设置",
-    "preferences": "偏好设置",
-    "language": "语言",
-    "notifications": "通知",
-    "security": "安全",
-    "pricing": "定价",
-    "roles": "角色",
-    "employees": "员工",
-    "languages": {
-      "fr": "法语",
-      "en": "英语",
-      "zh": "中文"
+    "tabs": {
+      "pricing": "定价",
+      "roles": "角色",
+      "employees": "员工",
+      "preferences": "偏好设置"
+    },
+    "language": {
+      "title": "语言",
+      "description": "选择界面语言",
+      "options": {
+        "en": "英语",
+        "fr": "法语",
+        "zh": "中文"
+      }
     }
   }
 }

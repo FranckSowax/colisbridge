@@ -11,7 +11,7 @@ function classNames(...classes) {
 
 export default function Settings() {
   const [selectedTab, setSelectedTab] = useState(0);
-  const { language, changeLanguage, t } = useLanguage();
+  const { language, changeLanguage } = useLanguage();
 
   const tabs = [
     { name: 'Tarification', icon: '💰' },
@@ -23,7 +23,6 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="py-4 sm:py-6">
-        {/* En-tête */}
         <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-4">
             Paramètres
@@ -103,6 +102,7 @@ export default function Settings() {
                             >
                               <option value="fr">Français</option>
                               <option value="en">Anglais</option>
+                              <option value="zh">Chinois</option>
                             </select>
                           </div>
                         </div>

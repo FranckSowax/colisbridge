@@ -182,7 +182,7 @@ const Dashboard = () => {
       <div className="flex-1 p-4">
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-xl font-semibold">Mes Colis</h2>
+            <h2 className="text-xl font-semibold">{t('dashboard.myParcels')}</h2>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setIsNewParcelModalOpen(true)}
@@ -241,7 +241,7 @@ const Dashboard = () => {
             {/* Évolution mensuelle */}
             <div className="bg-white rounded-lg shadow p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Évolution mensuelle
+                {t('dashboard.monthlyEvolution')}
               </h3>
               <div className="h-[300px] sm:h-[400px]">
                 <ResponsiveLine
@@ -318,7 +318,7 @@ const Dashboard = () => {
             {/* Distribution des colis */}
             <div className="bg-white rounded-lg shadow p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Distribution des colis
+                {t('dashboard.parcelDistribution')}
               </h3>
               <div className="h-[300px] sm:h-[400px]">
                 <ResponsivePie
@@ -368,7 +368,7 @@ const Dashboard = () => {
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">
-                  Colis récents
+                  {t('dashboard.recentParcels')}
                 </h3>
               </div>
               <div className="overflow-x-auto">
@@ -376,13 +376,13 @@ const Dashboard = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Numéro de suivi
+                        {t('dashboard.columns.trackingNumber')}
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Date de création
+                        {t('dashboard.columns.creationDate')}
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Destinataire
+                        {t('dashboard.columns.recipient')}
                       </th>
                     </tr>
                   </thead>
@@ -410,14 +410,14 @@ const Dashboard = () => {
                     disabled={true}
                     className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Précédent
+                    {t('common.previous')}
                   </button>
                   <button
                     onClick={() => {}}
                     disabled={true}
                     className="ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Suivant
+                    {t('common.next')}
                   </button>
                 </div>
               </div>
