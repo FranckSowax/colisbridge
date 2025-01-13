@@ -18,25 +18,28 @@ import {
   InboxIcon,
   TruckIcon,
   MagnifyingGlassIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
 import { ParcelLineChart } from '@/components/dashboard/ParcelLineChart';
 import { ParcelBarChart } from '@/components/dashboard/ParcelBarChart';
+import { ParcelCharts } from '@/components/dashboard/ParcelCharts';
 import { RecentParcels } from '@/components/dashboard/RecentParcels';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { classNames } from '@/utils/classNames';
+import NewParcelForm from '@/components/NewParcelForm';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
   { name: 'Colis', href: '/dashboard/parcels', icon: ArchiveBoxIcon },
   { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
+  { name: 'Litiges', href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
   { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon },
 ];
 
 const userNavigation = [
-  { name: 'Aide', href: '/help', icon: ExclamationTriangleIcon },
   { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
   { name: 'Déconnexion', href: '#', icon: ArrowRightOnRectangleIcon },
 ];
@@ -51,6 +54,7 @@ const timeRanges = [
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('week');
+  const [isNewParcelModalOpen, setIsNewParcelModalOpen] = useState(false);
   const location = useLocation();
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +67,11 @@ export function DashboardLayout() {
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     }
+  };
+
+  const handleNewParcelSuccess = () => {
+    setIsNewParcelModalOpen(false);
+    // Optionnel : rafraîchir les données ou naviguer vers une autre page
   };
 
   const isCurrentPath = (path) => {
@@ -275,79 +284,92 @@ export function DashboardLayout() {
             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
           </button>
 
+          {/* Separator */}
           <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            <form className="relative flex flex-1" action="#" method="GET">
-              <label htmlFor="search-field" className="sr-only">
-                Search
-              </label>
-              <MagnifyingGlassIcon
-                className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
-                aria-hidden="true"
-              />
-              <input
-                id="search-field"
-                className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-                placeholder="Rechercher..."
-                type="search"
-                name="search"
-              />
-            </form>
-            <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <button
-                type="button"
-                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
-              >
-                <span className="sr-only">View notifications</span>
-                <BellIcon className="h-6 w-6" aria-hidden="true" />
-              </button>
-
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
-
-              <Menu as="div" className="relative">
-                <Menu.Button className="-m-1.5 flex items-center p-1.5">
-                  <span className="sr-only">Open user menu</span>
-                  <img
-                    className="h-8 w-8 rounded-full bg-gray-50"
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.email}`}
-                    alt=""
-                  />
-                  <span className="hidden lg:flex lg:items-center">
-                    <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                      {user?.name}
-                    </span>
-                    <ChevronDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                  </span>
-                </Menu.Button>
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
+            <div className="flex flex-1 items-center justify-between">
+              <div className="flex flex-1">
+                {/* Bouton de création de colis */}
+                <button
+                  onClick={() => setIsNewParcelModalOpen(true)}
+                  className="ml-6 inline-flex items-center gap-x-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 >
-                  <Menu.Items className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
-                    {userNavigation.map((item) => (
-                      <Menu.Item key={item.name}>
-                        {({ active }) => (
-                          <a
-                            href={item.href}
-                            className={classNames(
-                              active ? 'bg-gray-50' : '',
-                              'block px-3 py-1 text-sm leading-6 text-gray-900'
-                            )}
-                          >
-                            {item.name}
-                          </a>
-                        )}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Items>
-                </Transition>
-              </Menu>
+                  <PlusIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
+                  Créer un colis
+                </button>
+              </div>
+              <div className="flex items-center gap-x-4 lg:gap-x-6">
+                <form className="relative flex flex-1" action="#" method="GET">
+                  <label htmlFor="search-field" className="sr-only">
+                    Search
+                  </label>
+                  <MagnifyingGlassIcon
+                    className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="search-field"
+                    className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                    placeholder="Rechercher..."
+                    type="search"
+                    name="search"
+                  />
+                </form>
+                <button
+                  type="button"
+                  className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
+                >
+                  <span className="sr-only">View notifications</span>
+                  <BellIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+
+                <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
+
+                <Menu as="div" className="relative">
+                  <Menu.Button className="-m-1.5 flex items-center p-1.5">
+                    <span className="sr-only">Open user menu</span>
+                    <img
+                      className="h-8 w-8 rounded-full bg-gray-50"
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.email}`}
+                      alt=""
+                    />
+                    <span className="hidden lg:flex lg:items-center">
+                      <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
+                        {user?.name}
+                      </span>
+                      <ChevronDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </span>
+                  </Menu.Button>
+                  <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Menu.Items className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                      {userNavigation.map((item) => (
+                        <Menu.Item key={item.name}>
+                          {({ active }) => (
+                            <a
+                              href={item.href}
+                              className={classNames(
+                                active ? 'bg-gray-50' : '',
+                                'block px-3 py-1 text-sm leading-6 text-gray-900'
+                              )}
+                            >
+                              {item.name}
+                            </a>
+                          )}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Items>
+                  </Transition>
+                </Menu>
+              </div>
             </div>
           </div>
         </div>
@@ -356,46 +378,22 @@ export function DashboardLayout() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {location.pathname === '/dashboard' ? (
               <>
-                <div className="mb-8">
-                  <ParcelStats />
-                </div>
+                <div className="py-10">
+                  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    {/* Stats */}
+                    <ParcelStats />
 
-                <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-8 lg:grid-cols-2">
-                  <div className="bg-white shadow-lg rounded-lg p-6 h-[400px]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold text-gray-900">Évolution des colis</h2>
-                      <select
-                        value={selectedTimeRange}
-                        onChange={(e) => setSelectedTimeRange(e.target.value)}
-                        className="mt-1 block w-32 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
-                      >
-                        {timeRanges.map((range) => (
-                          <option key={range.value} value={range.value}>
-                            {range.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="h-[300px]">
-                      <ParcelLineChart data={data?.lineChartData || []} timeRange={selectedTimeRange} />
-                    </div>
-                  </div>
+                    {/* Charts */}
+                    <ParcelCharts />
 
-                  <div className="bg-white shadow-lg rounded-lg p-6 h-[400px]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold text-gray-900">Répartition par statut</h2>
-                    </div>
-                    <div className="h-[300px]">
-                      <ParcelBarChart data={data?.barChartData || []} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8">
-                  <div className="bg-white shadow-lg rounded-lg">
-                    <div className="p-6">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Colis récents</h2>
-                      <RecentParcels parcels={data?.recentParcels || []} />
+                    {/* Recent Parcels */}
+                    <div className="mt-8">
+                      <div className="bg-white shadow-lg rounded-lg">
+                        <div className="p-6">
+                          <h2 className="text-lg font-semibold text-gray-900 mb-4">Colis récents</h2>
+                          <RecentParcels />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -406,6 +404,13 @@ export function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      {/* Modal de création de colis */}
+      <NewParcelForm
+        isOpen={isNewParcelModalOpen}
+        onClose={() => setIsNewParcelModalOpen(false)}
+        onSuccess={handleNewParcelSuccess}
+      />
     </div>
   );
 }

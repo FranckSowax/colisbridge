@@ -7,7 +7,7 @@ import {
   BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
-export function ClientStats() {
+export default function ClientStats() {
   const [stats, setStats] = useState({
     totalClients: 0,
     totalParcels: 0,
@@ -57,63 +57,59 @@ export function ClientStats() {
         totalCompanies: uniqueCompanies.size
       });
     } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
+      console.error('Error fetching client stats:', error);
     }
   }
 
-  const statCards = [
+  const stats_items = [
     {
       name: 'Total Clients',
       value: stats.totalClients,
       icon: UsersIcon,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-50'
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100'
     },
     {
       name: 'Total Colis',
       value: stats.totalParcels,
       icon: ArchiveBoxIcon,
-      color: 'bg-emerald-500',
-      textColor: 'text-emerald-600',
-      bgColor: 'bg-emerald-50'
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100'
     },
     {
-      name: 'Pays Desservis',
+      name: 'Total Pays',
       value: stats.totalCountries,
       icon: GlobeEuropeAfricaIcon,
-      color: 'bg-purple-500',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100'
     },
     {
-      name: 'Entreprises',
+      name: 'Total Entreprises',
       value: stats.totalCompanies,
       icon: BuildingOfficeIcon,
-      color: 'bg-amber-500',
-      textColor: 'text-amber-600',
-      bgColor: 'bg-amber-50'
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100'
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      {statCards.map((stat) => (
+    <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {stats_items.map((item) => (
         <div
-          key={stat.name}
+          key={item.name}
           className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
         >
           <dt>
-            <div className={`absolute rounded-md ${stat.bgColor} p-3`}>
-              <stat.icon className={`h-6 w-6 ${stat.textColor}`} aria-hidden="true" />
+            <div className={`absolute rounded-md ${item.bgColor} p-3`}>
+              <item.icon className={`h-6 w-6 ${item.color}`} aria-hidden="true" />
             </div>
-            <p className="ml-16 truncate text-sm font-medium text-gray-500">{stat.name}</p>
+            <p className="ml-16 truncate text-sm font-medium text-gray-500">{item.name}</p>
           </dt>
           <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-            <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+            <p className="text-2xl font-semibold text-gray-900">{item.value}</p>
           </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

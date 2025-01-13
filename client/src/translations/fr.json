@@ -1,0 +1,12 @@
+{
+  "dashboard": {
+    "charts": {
+      "monthly_evolution": "Évolution des colis",
+      "parcel_distribution": "Répartition par statut",
+      "received": "Reçu",
+      "shipped": "Expédié",
+      "completed": "Terminé",
+      "disputed": "En litige"
+    }
+  }
+}

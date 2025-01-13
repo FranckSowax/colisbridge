@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ClientSearch } from '@/components/clients/ClientSearch';
-import { ClientTable } from '@/components/clients/ClientTable';
-import { ClientStats } from '@/components/clients/ClientStats';
+import ClientSearch from '@/components/clients/ClientSearch';
+import ClientTable from '@/components/clients/ClientTable';
+import ClientStats from '@/components/clients/ClientStats';
 import { useClientData } from '@/hooks/useClientData';
 
-export function ClientList() {
+export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   const { clients, loading, error } = useClientData(searchQuery);
 

@@ -1,39 +1,39 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import Dashboard from './pages/dashboard/Dashboard';
+import Profile from './pages/dashboard/Profile';
+import Settings from './pages/dashboard/Settings';
+import { AuthLayout } from './layouts/AuthLayout';
+import { DashboardLayout } from './layouts/DashboardLayout';
+import { PrivateRoute } from './components/PrivateRoute';
+import Disputes from './pages/dashboard/Disputes';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SupabaseProvider } from './contexts/SupabaseContext';
-import { AuthLayout } from './layouts/AuthLayout';
-import { DashboardLayout } from './layouts/DashboardLayout';
-import { PrivateRoute } from './components/PrivateRoute';
+import CreateParcel from './pages/dashboard/CreateParcel';
 
 // Composant de chargement
 const LoadingSpinner = () => (
-  <div className="flex min-h-screen items-center justify-center">
-    <div className="h-32 w-32 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
   </div>
 );
 
 // Lazy loading des composants
-const Login = lazy(() => import('./pages/auth/Login'));
-const Register = lazy(() => import('./pages/auth/Register'));
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
-const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
-const CreateParcel = lazy(() => import('./pages/dashboard/CreateParcel'));
-const Statistics = lazy(() => import('./pages/dashboard/Statistics'));
-const ParcelList = lazy(() => import('./pages/dashboard/ParcelList'));
-const ParcelDetails = lazy(() => import('./pages/dashboard/ParcelDetails'));
-const ClientList = lazy(() => import('./pages/dashboard/ClientList'));
-const Profile = lazy(() => import('./pages/dashboard/Profile'));
-const Settings = lazy(() => import('./pages/dashboard/Settings'));
-const Disputes = lazy(() => import('./pages/dashboard/Disputes'));
+const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
+const Statistics = React.lazy(() => import('./pages/dashboard/Statistics'));
+const ParcelList = React.lazy(() => import('./pages/dashboard/ParcelList'));
+const ParcelDetails = React.lazy(() => import('./pages/dashboard/ParcelDetails'));
+const ClientList = React.lazy(() => import('./pages/dashboard/ClientList'));
 
 export default function App() {
   return (
-    <SupabaseProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <SupabaseProvider>
         <LanguageProvider>
           <ThemeProvider>
             <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
@@ -77,7 +77,7 @@ export default function App() {
             </div>
           </ThemeProvider>
         </LanguageProvider>
-      </AuthProvider>
-    </SupabaseProvider>
+      </SupabaseProvider>
+    </AuthProvider>
   );
 }

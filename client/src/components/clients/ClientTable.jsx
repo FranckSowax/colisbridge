@@ -5,7 +5,7 @@ import { EyeIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { ClientDetails } from './ClientDetails';
 
-export function ClientTable({ clients }) {
+export default function ClientTable({ clients }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -102,7 +102,7 @@ export function ClientTable({ clients }) {
               </div>
               <div className="sm:flex sm:items-start">
                 <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                  <ClientDetails client={selectedClient} />
+                  {selectedClient && <ClientDetails client={selectedClient} />}
                 </div>
               </div>
             </div>

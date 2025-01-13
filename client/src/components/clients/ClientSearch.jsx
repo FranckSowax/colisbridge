@@ -1,6 +1,14 @@
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useState } from 'react';
 
-export function ClientSearch({ value, onChange }) {
+export default function ClientSearch({ onSearch }) {
+  const [searchValue, setSearchValue] = useState('');
+
+  const handleSearch = (value) => {
+    setSearchValue(value);
+    onSearch(value);
+  };
+
   return (
     <div className="w-full max-w-lg">
       <div className="relative">
@@ -9,8 +17,8 @@ export function ClientSearch({ value, onChange }) {
         </div>
         <input
           type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={searchValue}
+          onChange={(e) => handleSearch(e.target.value)}
           className="block w-full rounded-lg border-0 py-3 pl-10 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm sm:leading-6"
           placeholder="Rechercher par nom, email ou téléphone..."
         />

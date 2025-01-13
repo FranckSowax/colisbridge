@@ -18,9 +18,9 @@ export function useClientData(searchQuery = '') {
 
         if (searchQuery) {
           query = query.or(
-            `recipient_name.ilike.%${searchQuery}%,` +
-            `recipient_email.ilike.%${searchQuery}%,` +
-            `recipient_phone.ilike.%${searchQuery}%`
+            'recipient_name.ilike.%' + searchQuery + '%,' +
+            'recipient_email.ilike.%' + searchQuery + '%,' +
+            'recipient_phone.ilike.%' + searchQuery + '%'
           );
         }
 
@@ -37,7 +37,7 @@ export function useClientData(searchQuery = '') {
               name: parcel.recipient_name,
               email: parcel.recipient_email,
               phone: parcel.recipient_phone,
-              country: parcel.country || 'FR', // Par défaut France si non spécifié
+              country: parcel.country || 'FR',
               totalParcels: 0,
               lastShipmentDate: null,
               parcels: []
@@ -47,7 +47,6 @@ export function useClientData(searchQuery = '') {
           acc[clientKey].totalParcels += 1;
           acc[clientKey].parcels.push(parcel);
           
-          // Met à jour le pays si celui du colis est différent de la valeur par défaut
           if (parcel.country && (!acc[clientKey].country || acc[clientKey].country === 'FR')) {
             acc[clientKey].country = parcel.country;
           }
@@ -72,7 +71,6 @@ export function useClientData(searchQuery = '') {
 
     fetchClients();
 
-    // Mettre en place la souscription en temps réel
     const subscription = supabase
       .channel('parcels_changes')
       .on('postgres_changes', 
@@ -81,9 +79,7 @@ export function useClientData(searchQuery = '') {
           schema: 'public', 
           table: 'parcels' 
         }, 
-        () => {
-          fetchClients();
-        }
+        fetchClients
       )
       .subscribe();
 

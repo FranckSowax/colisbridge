@@ -48,8 +48,8 @@ export default function DisputeModal({ isOpen, onClose, onSubmit, parcelInfo }) 
             <h3 className="font-medium text-gray-700">Informations du colis</h3>
             <div className="mt-2 text-sm text-gray-600">
               <p>Numéro de suivi: {parcelInfo?.tracking_number}</p>
-              <p>Destinataire: {parcelInfo?.destinataire}</p>
-              <p>Pays: {parcelInfo?.pays}</p>
+              <p>Destinataire: {parcelInfo?.recipient_name}</p>
+              <p>Pays: {parcelInfo?.country}</p>
             </div>
           </div>
 

@@ -5,10 +5,10 @@ import { useLanguage } from '@contexts/LanguageContext';
 import { useRecentParcels } from '@/hooks/useRecentParcels';
 
 const statusStyles = {
-  received: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
-  shipped: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-200',
-  completed: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-200',
-  disputed: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200',
+  receptionne: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
+  expedie: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-200',
+  recu: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-200',
+  litige: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200',
 };
 
 export function RecentParcels() {
@@ -31,26 +31,23 @@ export function RecentParcels() {
 
   const getStatusDisplay = (status) => {
     const statusMap = {
-      'received': 'Reçu',
-      'shipped': 'Expédié',
-      'completed': 'Terminé',
-      'disputed': 'En litige'
+      'receptionne': 'Reçu',
+      'expedie': 'Expédié',
+      'recu': 'Reçu',
+      'litige': 'En litige'
     };
     return statusMap[status] || status;
   };
 
-  const getCountryFlag = (countryCode) => {
-    // Convertir le code pays en emojis de drapeau
-    // Les codes pays sont composés de deux lettres majuscules
-    // Pour obtenir l'emoji du drapeau, on convertit chaque lettre en emoji regional indicator
-    if (!countryCode) return '';
-    const base = 127397; // Point de code Unicode pour les regional indicators
-    const flagEmoji = countryCode
-      .toUpperCase()
-      .split('')
-      .map(char => String.fromCodePoint(base + char.charCodeAt(0)))
-      .join('');
-    return `${flagEmoji} ${countryCode}`;
+  const getCountryName = (countryCode) => {
+    const countryNames = {
+      'fr': 'FRANCE',
+      'ga': 'GABON',
+      'tg': 'TOGO',
+      'ci': 'CÔTE D\'IVOIRE',
+      'ae': 'ÉMIRATS ARABES UNIS'
+    };
+    return countryNames[countryCode?.toLowerCase()] || countryCode?.toUpperCase() || '';
   };
 
   const formatWeight = (weight) => {
@@ -90,10 +87,6 @@ export function RecentParcels() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-        Colis récents
-      </h2>
-      
       <div className="mt-4 flow-root">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -125,7 +118,7 @@ export function RecentParcels() {
                         {parcel.recipient_name || '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {getCountryFlag(parcel.country)}
+                        {getCountryName(parcel.country)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {formatWeight(parcel.weight)}

@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from '../../contexts/SupabaseContext';
 import { toast } from 'react-hot-toast';
-
-const DISPUTE_STATUS_COLORS = {
-  ouvert: 'bg-red-100 text-red-800',
-  en_cours: 'bg-yellow-100 text-yellow-800',
-  resolu: 'bg-green-100 text-green-800',
-  annule: 'bg-gray-100 text-gray-800'
-};
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 const PRIORITY_COLORS = {
   basse: 'bg-blue-100 text-blue-800',
@@ -21,7 +16,6 @@ export default function Disputes() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    status: '',
     priority: '',
     searchTerm: ''
   });
@@ -30,30 +24,19 @@ export default function Disputes() {
     try {
       setLoading(true);
       let query = supabase
-        .from('disputes')
-        .select(`
-          *,
-          parcels (
-            tracking_number,
-            destinataire,
-            pays,
-            type_envoi
-          )
-        `)
+        .from('parcels')
+        .select('*')
+        .eq('status', 'litige')
         .order('created_at', { ascending: false });
 
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
       if (filters.priority) {
         query = query.eq('priority', filters.priority);
       }
       if (filters.searchTerm) {
-        query = query.or(`description.ilike.%${filters.searchTerm}%,parcels.tracking_number.ilike.%${filters.searchTerm}%`);
+        query = query.or(`description.ilike.%${filters.searchTerm}%,tracking_number.ilike.%${filters.searchTerm}%`);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
       setDisputes(data);
     } catch (error) {
@@ -64,25 +47,38 @@ export default function Disputes() {
     }
   };
 
-  const updateDisputeStatus = async (disputeId, newStatus) => {
+  const updateDisputePriority = async (parcelId, newPriority) => {
     try {
-      const updates = {
-        status: newStatus,
-        ...(newStatus === 'resolu' && { resolved_at: new Date().toISOString() })
-      };
-
       const { error } = await supabase
-        .from('disputes')
-        .update(updates)
-        .eq('id', disputeId);
+        .from('parcels')
+        .update({ priority: newPriority })
+        .eq('id', parcelId);
 
       if (error) throw error;
-      
-      toast.success('Statut du litige mis à jour');
+      toast.success('Priorité mise à jour');
       fetchDisputes();
     } catch (error) {
-      console.error('Error updating dispute:', error);
-      toast.error('Erreur lors de la mise à jour du statut');
+      console.error('Error updating priority:', error);
+      toast.error('Erreur lors de la mise à jour de la priorité');
+    }
+  };
+
+  const resolveDispute = async (parcelId) => {
+    try {
+      const { error } = await supabase
+        .from('parcels')
+        .update({ 
+          status: 'livré',
+          resolved_at: new Date().toISOString()
+        })
+        .eq('id', parcelId);
+
+      if (error) throw error;
+      toast.success('Litige résolu');
+      fetchDisputes();
+    } catch (error) {
+      console.error('Error resolving dispute:', error);
+      toast.error('Erreur lors de la résolution du litige');
     }
   };
 
@@ -90,31 +86,27 @@ export default function Disputes() {
     fetchDisputes();
   }, [filters]);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-xl font-semibold text-gray-900">Litiges</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Liste de tous les litiges avec leur statut et détails
+            Liste de tous les colis en litige
           </p>
         </div>
       </div>
 
       {/* Filtres */}
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <select
-          value={filters.status}
-          onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
-          className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        >
-          <option value="">Tous les statuts</option>
-          <option value="ouvert">Ouvert</option>
-          <option value="en_cours">En cours</option>
-          <option value="resolu">Résolu</option>
-          <option value="annule">Annulé</option>
-        </select>
-
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <select
           value={filters.priority}
           onChange={(e) => setFilters(f => ({ ...f, priority: e.target.value }))}
@@ -148,19 +140,22 @@ export default function Disputes() {
                       Colis
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Expéditeur
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Destinataire
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Description
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Priorité
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Statut
+                      Actions
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Date de création
-                    </th>
-                    <th className="relative px-3 py-3.5">
-                      <span className="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
@@ -169,11 +164,17 @@ export default function Disputes() {
                     <tr key={dispute.id}>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <div className="font-medium text-gray-900">
-                          {dispute.parcels.tracking_number}
+                          {dispute.tracking_number}
                         </div>
                         <div className="text-gray-500">
-                          {dispute.parcels.destinataire}
+                          {dispute.type_envoi}
                         </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {dispute.expediteur}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {dispute.destinataire}
                       </td>
                       <td className="px-3 py-4 text-sm text-gray-500">
                         <div className="max-w-xs overflow-hidden text-ellipsis">
@@ -181,24 +182,27 @@ export default function Disputes() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${PRIORITY_COLORS[dispute.priority]}`}>
-                          {dispute.priority}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <select
-                          value={dispute.status}
-                          onChange={(e) => updateDisputeStatus(dispute.id, e.target.value)}
-                          className={`rounded-full px-2 text-xs font-semibold ${DISPUTE_STATUS_COLORS[dispute.status]}`}
+                          value={dispute.priority || 'normale'}
+                          onChange={(e) => updateDisputePriority(dispute.id, e.target.value)}
+                          className={`rounded-full px-2 text-xs font-semibold ${PRIORITY_COLORS[dispute.priority || 'normale']}`}
                         >
-                          <option value="ouvert">Ouvert</option>
-                          <option value="en_cours">En cours</option>
-                          <option value="resolu">Résolu</option>
-                          <option value="annule">Annulé</option>
+                          <option value="basse">Basse</option>
+                          <option value="normale">Normale</option>
+                          <option value="haute">Haute</option>
+                          <option value="urgente">Urgente</option>
                         </select>
                       </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <button
+                          onClick={() => resolveDispute(dispute.id)}
+                          className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+                        >
+                          Résoudre
+                        </button>
+                      </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Date(dispute.created_at).toLocaleDateString()}
+                        {format(new Date(dispute.created_at), 'dd MMM yyyy', { locale: fr })}
                       </td>
                     </tr>
                   ))}

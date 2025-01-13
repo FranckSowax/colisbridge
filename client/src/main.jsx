@@ -19,15 +19,10 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
   {
-    path: '/*',
-    element: <App />,
+    path: '*',
+    element: <App />
   }
-], {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true,
-  },
-})
+])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -37,5 +32,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ErrorBoundary>
-  </React.StrictMode>
+  </React.StrictMode>,
 )
