@@ -70,95 +70,53 @@ const getCountryFlag = (countryCode) => {
   return countryCode;
 };
 
-const SearchBar = ({ searchQuery, searchType, onSearchChange, onSearchTypeChange, isSearchFocused, setIsSearchFocused }) => {
+const SearchBar = ({ searchQuery, onSearchChange, isSearchFocused, setIsSearchFocused }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  const getPlaceholder = () => {
-    switch (searchType) {
-      case 'tracking':
-        return 'Rechercher par numéro de suivi...';
-      case 'recipient':
-        return 'Rechercher par nom du destinataire...';
-      case 'phone':
-        return 'Rechercher par téléphone...';
-      default:
-        return 'Rechercher...';
-    }
-  };
 
   return (
     <div className="mb-6 px-4 sm:px-6 lg:px-8">
       <div className="relative max-w-3xl mx-auto">
-        {/* Mobile search trigger */}
-        <button
-          type="button"
-          onClick={() => setIsExpanded(true)}
-          className="md:hidden w-full flex items-center text-left space-x-3 px-4 h-12 bg-white ring-1 ring-slate-900/10 hover:ring-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm rounded-lg text-slate-400"
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            isExpanded ? 'w-full' : 'w-full'
+          }`}
         >
-          <MagnifyingGlassIcon className="h-5 w-5" />
-          <span className="flex-auto">Rechercher un colis...</span>
-        </button>
-
-        {/* Search input - hidden on mobile unless expanded */}
-        <div className={`${isExpanded ? 'absolute inset-x-0 top-0' : 'hidden'} md:block z-50`}>
-          <div className="flex bg-white rounded-lg shadow-sm ring-1 ring-slate-900/10">
-            <div className="flex-auto">
-              <div className="relative">
-                <MagnifyingGlassIcon 
-                  className="pointer-events-none absolute top-3 left-4 h-5 w-5 text-slate-400" 
-                  aria-hidden="true" 
-                />
+          <div className="relative">
+            <div className="flex">
+              <div className="relative flex-grow">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <MagnifyingGlassIcon
+                    className="h-6 w-6 text-slate-400"
+                    aria-hidden="true"
+                  />
+                </div>
                 <input
                   type="text"
-                  className="block w-full rounded-l-lg border-0 py-3 pl-12 pr-4 text-slate-900 ring-0 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm"
-                  placeholder={getPlaceholder()}
+                  className="block w-full rounded-lg border-0 py-3 pl-12 pr-4 text-slate-900 ring-1 ring-inset ring-gray-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  placeholder="Rechercher un colis..."
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
+                  onFocus={() => {
+                    setIsSearchFocused(true);
+                    setIsExpanded(true);
+                  }}
+                  onBlur={() => {
+                    setIsSearchFocused(false);
+                    setIsExpanded(false);
+                  }}
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => onSearchChange('')}
-                    className="absolute right-2 top-3 text-gray-400 hover:text-gray-500"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3"
                   >
-                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                    <XMarkIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex items-center border-l border-slate-200">
-              <select
-                value={searchType}
-                onChange={(e) => onSearchTypeChange(e.target.value)}
-                className="h-full rounded-r-lg border-0 bg-transparent py-0 pl-3 pr-7 text-gray-500 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm"
-              >
-                <option value="tracking">N° de suivi</option>
-                <option value="recipient">Destinataire</option>
-                <option value="phone">Téléphone</option>
-              </select>
-            </div>
-            {/* Close button on mobile */}
-            <div className="md:hidden flex items-center pr-2">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(false)}
-                className="p-2 text-slate-400 hover:text-slate-500"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
           </div>
-          
-          {/* Search suggestions panel */}
-          {isSearchFocused && searchQuery && (
-            <div className="absolute top-full left-0 right-0 bg-white mt-1 rounded-lg shadow-lg border border-gray-200 max-h-64 overflow-auto">
-              <div className="p-2 text-sm text-gray-500">
-                Recherche en cours...
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -228,7 +186,6 @@ export default function ParcelList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchType, setSearchType] = useState('tracking');
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
 
@@ -252,13 +209,7 @@ export default function ParcelList() {
       .order('created_at', { ascending: false });
 
     if (searchQuery) {
-      if (searchType === 'tracking') {
-        query = query.ilike('tracking_number', `%${searchQuery}%`);
-      } else if (searchType === 'recipient') {
-        query = query.ilike('recipient_name', `%${searchQuery}%`);
-      } else if (searchType === 'phone') {
-        query = query.ilike('recipient_phone', `%${searchQuery}%`);
-      }
+      query = query.ilike('tracking_number', `%${searchQuery}%`);
     }
 
     const { data, error } = await query;
@@ -267,7 +218,7 @@ export default function ParcelList() {
   };
 
   const { data: parcels = [], refetch } = useQuery({
-    queryKey: ['parcels', searchQuery, searchType],
+    queryKey: ['parcels', searchQuery],
     queryFn: fetchParcels,
     refetchOnWindowFocus: true,
     staleTime: 1000,
@@ -304,15 +255,13 @@ export default function ParcelList() {
         return;
       }
 
-      const now = new Date().toISOString();
-      const updates = { 
+      const previousStatus = parcel.status;
+      const updates = {
         status: newStatus,
-        updated_at: now,
-        ...(newStatus === 'expedie' && { shipped_at: now }),
-        ...(newStatus === 'receptionne' && { received_at: now }),
-        ...(newStatus === 'termine' && { completed_at: now })
+        updated_at: new Date().toISOString(),
       };
 
+      // Mise à jour dans Supabase
       const { error } = await supabase
         .from('parcels')
         .update(updates)
@@ -320,12 +269,20 @@ export default function ParcelList() {
 
       if (error) throw error;
 
-      // Invalider le cache pour forcer un rafraîchissement
-      queryClient.invalidateQueries(['parcels']);
-      toast.success(`Statut mis à jour : ${getStatusLabel(newStatus)}`);
+      // Mise à jour des statistiques
+      await supabase.rpc('update_parcel_stats', {
+        old_status: previousStatus,
+        new_status: newStatus,
+        p_date: new Date(parcel.created_at).toISOString()
+      });
+
+      // Rafraîchir les données
+      refetch();
+      
+      toast.success(`Statut mis à jour: ${newStatus}`);
     } catch (error) {
       console.error('Error updating parcel status:', error);
-      toast.error('Une erreur est survenue lors de la mise à jour du statut');
+      toast.error('Erreur lors de la mise à jour du statut');
     }
   };
 
@@ -509,12 +466,6 @@ export default function ParcelList() {
     queryClient.invalidateQueries(['parcels']);
   };
 
-  const handleSearchTypeChange = (value) => {
-    setSearchType(value);
-    setSearchQuery(''); // Réinitialiser la recherche lors du changement de type
-    queryClient.invalidateQueries(['parcels']);
-  };
-
   if (!parcels.length && !searchQuery) {
     return (
       <div className="min-h-screen bg-gray-100 py-8">
@@ -546,63 +497,84 @@ export default function ParcelList() {
         <div className="bg-white shadow-sm rounded-lg">
           {/* Filtres mobiles */}
           <div className="block sm:hidden p-4 bg-gray-50 border-b">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              className="w-full p-2 border rounded-lg mb-2"
-            >
-              <option value="tracking">N° de suivi</option>
-              <option value="recipient">Destinataire</option>
-              <option value="phone">Téléphone</option>
-            </select>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                placeholder="Rechercher un colis..."
+              />
+            </div>
           </div>
 
           {/* Liste pour mobile */}
           <div className="block sm:hidden">
-            <div className="divide-y divide-gray-200">
+            <div className="space-y-4">
               {parcels.map((parcel) => (
-                <div key={parcel.id} className="p-4 bg-white">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+                <div
+                  key={parcel.id}
+                  className="bg-white shadow rounded-lg overflow-hidden"
+                >
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 mt-1">
+                          {parcel.tracking_number}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {parcel.recipient_name}
+                        </p>
                       </div>
-                      <div className="mt-1">
-                        <div className="text-gray-900">{parcel.tracking_number}</div>
-                        <div className="text-gray-500 text-xs mt-1">{parcel.recipient_name}</div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => onViewDetails(parcel)}
+                          className="text-gray-400 hover:text-gray-500"
+                        >
+                          <span className="sr-only">Détails</span>
+                          <EllipsisHorizontalIcon className="h-6 w-6" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(parcel)}
-                        className="p-2 text-indigo-600 hover:text-indigo-900"
-                      >
-                        <EllipsisHorizontalIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(parcel)}
-                        className="p-2 text-red-600 hover:text-red-900"
-                      >
-                        <EllipsisHorizontalIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-sm text-gray-500">
-                    <div className="flex justify-between">
-                      <span>Pays:</span>
-                      <span className="font-medium">{getCountryFlag(parcel.country)}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Type d'envoi:</span>
-                      <span>{parcel.shipping_type}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Poids:</span>
-                      <span>{parcel.weight} kg</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Statut:</span>
-                      <span className={`font-medium ${getStatusColor(parcel.status)}`}>{getStatusLabel(parcel.status)}</span>
+                    <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Pays:</p>
+                        <p className="font-medium text-gray-900">
+                          {COUNTRIES[parcel.country.toLowerCase()]?.flag} {COUNTRIES[parcel.country.toLowerCase()]?.name}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Type d'envoi:</p>
+                        <p className="font-medium text-gray-900">{parcel.shipping_type}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Poids:</p>
+                        <p className="font-medium text-gray-900">{parcel.weight} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Statut:</p>
+                        <select
+                          value={parcel.status}
+                          onChange={(e) => handleStatusChange(parcel, e.target.value)}
+                          className={`mt-1 block w-full rounded-md py-1.5 pl-3 pr-10 text-sm ${getStatusColor(parcel.status)} border-gray-200 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+                        >
+                          {STATUSES.map((status) => (
+                            <option
+                              key={status.value}
+                              value={status.value}
+                              className="bg-white text-gray-900"
+                            >
+                              {status.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -616,9 +588,7 @@ export default function ParcelList() {
               <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
               <SearchBar
                 searchQuery={searchQuery}
-                searchType={searchType}
                 onSearchChange={handleSearchChange}
-                onSearchTypeChange={handleSearchTypeChange}
                 isSearchFocused={isSearchFocused}
                 setIsSearchFocused={setIsSearchFocused}
               />
