@@ -1,100 +1,403 @@
-import { useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '@contexts/AuthContext';
-import { useLanguage } from '@contexts/LanguageContext';
-import Navbar from '@components/Navbar';
-import { 
-  HomeIcon, 
-  UsersIcon, 
-  ChartBarIcon,
+import { Fragment, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Dialog, Menu, Transition } from '@headlessui/react';
+import {
+  HomeIcon,
   ArchiveBoxIcon,
-  ExclamationTriangleIcon
+  UsersIcon,
+  ChartBarIcon,
+  ExclamationTriangleIcon,
+  BellIcon,
+  XMarkIcon,
+  Bars3Icon,
+  InboxIcon,
+  TruckIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
+import { ParcelStats } from '@/components/parcels/ParcelStats';
+import { ParcelLineChart } from '@/components/dashboard/ParcelLineChart';
+import { ParcelBarChart } from '@/components/dashboard/ParcelBarChart';
+import { RecentParcels } from '@/components/dashboard/RecentParcels';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useAuth } from '@/contexts/AuthContext';
+
+const navigation = [
+  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, current: true },
+  { name: 'Colis', href: '/dashboard/parcels', icon: ArchiveBoxIcon, current: false },
+  { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon, current: false },
+  { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon, current: false },
+];
+
+const userNavigation = [
+  { name: 'Aide', href: '/help', icon: ExclamationTriangleIcon },
+  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'Déconnexion', href: '#', icon: ArrowRightOnRectangleIcon },
+];
+
+const timeRanges = [
+  { name: 'Jour', value: 'day' },
+  { name: 'Semaine', value: 'week' },
+  { name: 'Mois', value: 'month' },
+  { name: 'Année', value: 'year' },
+];
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export function DashboardLayout() {
-  const navigate = useNavigate();
-  const { user, loading: authLoading, signOut } = useAuth();
-  const { t, loading: langLoading } = useLanguage();
-  const [error, setError] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('week');
+  const location = useLocation();
+  const { signOut, user } = useAuth();
+  const { data, loading, error } = useDashboardData();
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
-      toast.error(t('errors.signout_failed'));
+      console.error('Erreur lors de la déconnexion:', error);
     }
   };
 
-  const navigation = [
-    { name: t('navigation.dashboard'), href: '/dashboard', icon: HomeIcon },
-    { name: t('navigation.parcels'), href: '/dashboard/parcels', icon: ArchiveBoxIcon },
-    { name: t('navigation.clients'), href: '/dashboard/clients', icon: UsersIcon },
-    { name: t('navigation.statistics'), href: '/dashboard/statistics', icon: ChartBarIcon },
-    { name: t('navigation.disputes'), href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
-  ];
-
-  const userNavigation = [
-    { name: t('navigation.profile'), href: '/dashboard/profile' },
-    { name: t('navigation.settings'), href: '/dashboard/settings' },
-    { name: t('navigation.logout'), onClick: handleSignOut }
-  ];
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (!authLoading && !user) {
-          navigate('/login', { replace: true });
-        }
-      } catch (err) {
-        setError(err);
-        toast.error(t('errors.auth_check_failed'));
-      }
-    };
-
-    checkAuth();
-  }, [user, authLoading, navigate, t]);
-
-  if (error) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-            {t('errors.something_went_wrong')}
-          </h2>
-          <p className="text-gray-600 mb-4">{error.message}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn btn-primary"
-          >
-            {t('actions.refresh')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (authLoading || langLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600">{t('loading.please_wait')}</p>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans antialiased">
-      <Navbar navigation={navigation} userNavigation={userNavigation} />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <Outlet />
+    <div className="min-h-screen bg-gray-50">
+      <Transition.Root show={sidebarOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50 lg:hidden" onClose={setSidebarOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="transition-opacity ease-linear duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity ease-linear duration-300"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-900/80" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 flex">
+            <Transition.Child
+              as={Fragment}
+              enter="transition ease-in-out duration-300 transform"
+              enterFrom="-translate-x-full"
+              enterTo="translate-x-0"
+              leave="transition ease-in-out duration-300 transform"
+              leaveFrom="translate-x-0"
+              leaveTo="-translate-x-full"
+            >
+              <Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
+                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
+                  <div className="flex h-48 shrink-0 items-center">
+                    <img
+                      className="h-48 w-auto"
+                      src="https://i.imgur.com/ZU2ZGQk.png"
+                      alt="Colisbridge"
+                    />
+                  </div>
+                  <nav className="flex flex-1 flex-col">
+                    <ul role="list" className="flex flex-1 flex-col gap-y-7">
+                      <li>
+                        <div className="text-xs font-semibold leading-6 text-gray-400">MENU</div>
+                        <ul role="list" className="-mx-2 mt-2 space-y-1">
+                          {navigation.map((item) => (
+                            <li key={item.name}>
+                              <Link
+                                to={item.href}
+                                className={classNames(
+                                  location.pathname === item.href
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-50',
+                                  'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
+                                )}
+                              >
+                                <item.icon
+                                  className={classNames(
+                                    location.pathname === item.href ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
+                                    'h-6 w-6 shrink-0'
+                                  )}
+                                  aria-hidden="true"
+                                />
+                                {item.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                      <li>
+                        <div className="text-xs font-semibold leading-6 text-gray-400">COMPTE</div>
+                        <ul role="list" className="-mx-2 mt-2 space-y-1">
+                          {userNavigation.map((item) => (
+                            <li key={item.name}>
+                              {item.name === 'Déconnexion' ? (
+                                <button
+                                  onClick={handleSignOut}
+                                  className="text-gray-700 hover:text-emerald-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full"
+                                >
+                                  <item.icon
+                                    className="text-gray-400 group-hover:text-emerald-600 h-6 w-6 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                  {item.name}
+                                </button>
+                              ) : (
+                                <Link
+                                  to={item.href}
+                                  className="text-gray-700 hover:text-emerald-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                                >
+                                  <item.icon
+                                    className="text-gray-400 group-hover:text-emerald-600 h-6 w-6 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                  {item.name}
+                                </Link>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition.Root>
+
+      {/* Static sidebar for desktop */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
+          <div className="flex h-48 shrink-0 items-center">
+            <img
+              className="h-48 w-auto"
+              src="https://i.imgur.com/ZU2ZGQk.png"
+              alt="Colisbridge"
+            />
+          </div>
+          <nav className="flex flex-1 flex-col">
+            <ul role="list" className="flex flex-1 flex-col gap-y-7">
+              <li>
+                <div className="text-xs font-semibold leading-6 text-gray-400">MENU</div>
+                <ul role="list" className="-mx-2 mt-2 space-y-1">
+                  {navigation.map((item) => (
+                    <li key={item.name}>
+                      <Link
+                        to={item.href}
+                        className={classNames(
+                          location.pathname === item.href
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-50',
+                          'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
+                        )}
+                      >
+                        <item.icon
+                          className={classNames(
+                            location.pathname === item.href ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
+                            'h-6 w-6 shrink-0'
+                          )}
+                          aria-hidden="true"
+                        />
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+              <li>
+                <div className="text-xs font-semibold leading-6 text-gray-400">COMPTE</div>
+                <ul role="list" className="-mx-2 mt-2 space-y-1">
+                  {userNavigation.map((item) => (
+                    <li key={item.name}>
+                      {item.name === 'Déconnexion' ? (
+                        <button
+                          onClick={handleSignOut}
+                          className="text-gray-700 hover:text-emerald-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full"
+                        >
+                          <item.icon
+                            className="text-gray-400 group-hover:text-emerald-600 h-6 w-6 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {item.name}
+                        </button>
+                      ) : (
+                        <Link
+                          to={item.href}
+                          className="text-gray-700 hover:text-emerald-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                        >
+                          <item.icon
+                            className="text-gray-400 group-hover:text-emerald-600 h-6 w-6 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {item.name}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            </ul>
+          </nav>
         </div>
-      </main>
+      </div>
+
+      <div className="lg:pl-72">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <span className="sr-only">Open sidebar</span>
+            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+          </button>
+
+          <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
+
+          <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+            <form className="relative flex flex-1" action="#" method="GET">
+              <label htmlFor="search-field" className="sr-only">
+                Search
+              </label>
+              <MagnifyingGlassIcon
+                className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
+                aria-hidden="true"
+              />
+              <input
+                id="search-field"
+                className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                placeholder="Rechercher..."
+                type="search"
+                name="search"
+              />
+            </form>
+            <div className="flex items-center gap-x-4 lg:gap-x-6">
+              <button
+                type="button"
+                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
+              >
+                <span className="sr-only">View notifications</span>
+                <BellIcon className="h-6 w-6" aria-hidden="true" />
+              </button>
+
+              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
+
+              <Menu as="div" className="relative">
+                <Menu.Button className="-m-1.5 flex items-center p-1.5">
+                  <span className="sr-only">Open user menu</span>
+                  <img
+                    className="h-8 w-8 rounded-full bg-gray-50"
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.email}`}
+                    alt=""
+                  />
+                  <span className="hidden lg:flex lg:items-center">
+                    <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
+                      {user?.name}
+                    </span>
+                    <ChevronDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </span>
+                </Menu.Button>
+                <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Menu.Items className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                    {userNavigation.map((item) => (
+                      <Menu.Item key={item.name}>
+                        {({ active }) => (
+                          <a
+                            href={item.href}
+                            className={classNames(
+                              active ? 'bg-gray-50' : '',
+                              'block px-3 py-1 text-sm leading-6 text-gray-900'
+                            )}
+                          >
+                            {item.name}
+                          </a>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+            </div>
+          </div>
+        </div>
+
+        <main className="py-10">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {location.pathname === '/dashboard' && (
+              <>
+                <div className="mb-8">
+                  <ParcelStats />
+                </div>
+
+                <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-8 lg:grid-cols-2">
+                  <div className="bg-white shadow-lg rounded-lg p-6 h-[400px]">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900">Évolution des colis</h2>
+                      <select
+                        value={selectedTimeRange}
+                        onChange={(e) => setSelectedTimeRange(e.target.value)}
+                        className="mt-1 block w-32 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+                      >
+                        {timeRanges.map((range) => (
+                          <option key={range.value} value={range.value}>
+                            {range.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="h-[300px]">
+                      <ParcelLineChart data={data?.lineChartData || []} timeRange={selectedTimeRange} />
+                    </div>
+                  </div>
+
+                  <div className="bg-white shadow-lg rounded-lg p-6 h-[400px]">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900">Répartition par statut</h2>
+                    </div>
+                    <div className="h-[300px]">
+                      <ParcelBarChart data={data?.barChartData || []} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <div className="bg-white shadow-lg rounded-lg">
+                    <div className="p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Colis récents</h2>
+                      <RecentParcels parcels={data?.recentParcels || []} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            {location.pathname !== '/dashboard' && <Outlet />}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
