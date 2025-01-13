@@ -21,11 +21,22 @@
     "dashboard": "Tableau de bord",
     "parcels": "Colis",
     "clients": "Clients",
-    "settings": "Paramètres",
-    "profile": "Profil",
-    "logout": "Déconnexion",
     "statistics": "Statistiques",
-    "disputes": "Litiges"
+    "disputes": "Litiges",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "dashboard": {
+    "overview": "Vue d'ensemble",
+    "recent_parcels": "Colis récents",
+    "no_parcels": "Aucun colis à afficher",
+    "stats": {
+      "received": "Reçus",
+      "shipped": "Expédiés",
+      "completed": "Terminés",
+      "disputed": "En litige"
+    }
   },
   "parcels": {
     "title": "Mes Colis",
@@ -38,6 +49,9 @@
     "actions": "Actions",
     "viewInvoice": "Voir la facture",
     "viewDetails": "Voir les détails",
+    "tracking_number": "Numéro de suivi",
+    "created_at": "Date de création",
+    "create_new": "Créer un nouveau colis",
     "form": {
       "title": "Nouveau colis",
       "close": "Fermer",
@@ -84,8 +98,25 @@
       "shipped": "Expédié",
       "delivered": "Livré",
       "completed": "Terminé",
-      "update": "Marquer comme"
+      "update": "Marquer comme",
+      "disputed": "En litige"
     }
+  },
+  "pagination": {
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
+  "loading": {
+    "please_wait": "Veuillez patienter..."
+  },
+  "errors": {
+    "something_went_wrong": "Une erreur est survenue",
+    "fetch_failed": "Impossible de récupérer les données",
+    "auth_check_failed": "Erreur lors de la vérification de l'authentification",
+    "signout_failed": "Erreur lors de la déconnexion"
+  },
+  "actions": {
+    "refresh": "Actualiser"
   },
   "statistics": {
     "title": "Statistiques",

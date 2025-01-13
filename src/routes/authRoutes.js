@@ -2,10 +2,18 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const router = express.Router();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Initialisation de Supabase avec gestion d'erreur
+let supabase;
+try {
+  supabase = createClient(
+    'https://ayxltzvmpqxtyfvfotxd.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5eGx0enZtcHF4dHlmdmZvdHhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ0Nzk5NjcsImV4cCI6MjA1MDA1NTk2N30.--5nlZFj4yKdBg_X0ked23vvFMsvWdKQ2dNbpJlnq0s'
+  );
+  console.log('Connexion Supabase établie avec succès');
+} catch (error) {
+  console.error('Erreur lors de l\'initialisation de Supabase:', error);
+  throw error;
+}
 
 // Route de connexion
 router.post('/login', async (req, res) => {

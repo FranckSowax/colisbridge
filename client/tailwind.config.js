@@ -25,19 +25,7 @@ export default {
         'xxs': '0.625rem',
       },
       fontFamily: {
-        sans: [
-          'system-ui',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Roboto',
-          'Oxygen',
-          'Ubuntu',
-          'Cantarell',
-          '"Open Sans"',
-          '"Helvetica Neue"',
-          'sans-serif',
-        ],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         primary: {

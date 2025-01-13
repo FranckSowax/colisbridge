@@ -1,18 +1,25 @@
 import { createClient } from '@supabase/supabase-js'
+import { SUPABASE_CONFIG } from './supabaseConfig'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
+  throw new Error('Les variables d\'environnement Supabase sont manquantes')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+console.log('Initialisation du client Supabase...')
+
+export const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
   auth: {
-    persistSession: true,
-    storageKey: 'twinsk-parcel-auth',
-    storage: window.localStorage,
-    detectSessionInUrl: true,
     autoRefreshToken: true,
-  },
+    persistSession: true,
+    detectSessionInUrl: true,
+    storageKey: 'colisbridge-auth',
+    storage: typeof window !== 'undefined' ? window.localStorage : null,
+    debug: true // Active les logs de débogage pour l'authentification
+  }
+})
+
+// Vérification de la connexion
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Événement d\'authentification:', event)
+  console.log('Session active:', session ? 'Oui' : 'Non')
 })

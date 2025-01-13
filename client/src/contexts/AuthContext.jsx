@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../config/supabaseClient';
+import { supabase } from '@/config/supabaseConfig';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext({});

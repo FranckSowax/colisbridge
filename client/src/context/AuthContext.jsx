@@ -6,7 +6,7 @@ export const AuthContext = createContext({})
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider')
   }
   return context
 }
@@ -15,103 +15,97 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
+    let mounted = true
+
     // Vérifie la session actuelle
     const getSession = async () => {
       try {
+        console.log('Récupération de la session en cours...')
         const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) throw error
         
-        setSession(session)
-        setUser(session?.user ?? null)
+        if (error) {
+          console.error('Erreur lors de la récupération de la session:', error.message)
+          if (mounted) setError(error.message)
+          return
+        }
+        
+        console.log('État de la session:', {
+          sessionExiste: !!session,
+          userId: session?.user?.id,
+          email: session?.user?.email
+        })
+        
+        if (mounted) {
+          setSession(session)
+          setUser(session?.user ?? null)
+          setError(null)
+        }
       } catch (error) {
-        console.error('Error getting session:', error.message)
+        console.error('Erreur inattendue:', error.message)
+        if (mounted) setError(error.message)
       } finally {
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
     }
 
     getSession()
 
     // Écoute les changements d'authentification
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Changement d\'état d\'authentification:', {
+        event,
+        userId: session?.user?.id,
+        email: session?.user?.email
+      })
+
+      if (mounted) {
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+        setError(null)
+      }
     })
 
+    // Nettoyage
     return () => {
+      mounted = false
       subscription?.unsubscribe()
     }
   }, [])
 
-  const signUp = async (email, password) => {
+  // Fonctions d'authentification
+  const signIn = async ({ email, password }) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-
+      setLoading(true)
+      setError(null)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      
       if (error) throw error
-      return { data, error: null }
+      
+      return data
     } catch (error) {
-      console.error('Error in signUp:', error.message)
-      return { data: null, error }
-    }
-  }
-
-  const signIn = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      console.error('Error in signIn:', error.message)
-      return { data: null, error }
+      setError(error.message)
+      throw error
+    } finally {
+      setLoading(false)
     }
   }
 
   const signOut = async () => {
     try {
+      setLoading(true)
+      setError(null)
       const { error } = await supabase.auth.signOut()
+      
       if (error) throw error
-      return { error: null }
     } catch (error) {
-      console.error('Error in signOut:', error.message)
-      return { error }
-    }
-  }
-
-  const resetPassword = async (email) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-      if (error) throw error
-      return { error: null }
-    } catch (error) {
-      console.error('Error in resetPassword:', error.message)
-      return { error }
-    }
-  }
-
-  const updatePassword = async (newPassword) => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-      if (error) throw error
-      return { error: null }
-    } catch (error) {
-      console.error('Error in updatePassword:', error.message)
-      return { error }
+      setError(error.message)
+      throw error
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -119,12 +113,15 @@ export function AuthProvider({ children }) {
     user,
     session,
     loading,
-    signUp,
+    error,
     signIn,
     signOut,
-    resetPassword,
-    updatePassword,
+    isAuthenticated: !!user,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }

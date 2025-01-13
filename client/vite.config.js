@@ -22,14 +22,14 @@ export default defineConfig({
   },
   server: {
     port: 3003,
-    strictPort: true,
+    strictPort: false,
     watch: {
       usePolling: true
     },
     hmr: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }

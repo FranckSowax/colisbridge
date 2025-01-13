@@ -15,6 +15,7 @@ import { fr } from 'date-fns/locale';
 import { useParcelPrice } from '../../hooks/useParcelPrice';
 import { generateInvoice } from '../../services/invoiceService';
 import PDFViewer from '../../components/PDFViewer';
+import { ParcelStats } from '@/components/parcels/ParcelStats';
 
 const COUNTRIES = {
   gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
@@ -536,137 +537,145 @@ export default function ParcelList() {
   }
 
   return (
-    <>
-      {/* Filtres mobiles */}
-      <div className="block sm:hidden p-4 bg-gray-50 border-b">
-        <select
-          value={searchType}
-          onChange={(e) => setSearchType(e.target.value)}
-          className="w-full p-2 border rounded-lg mb-2"
-        >
-          <option value="tracking">N° de suivi</option>
-          <option value="recipient">Destinataire</option>
-          <option value="phone">Téléphone</option>
-        </select>
+    <div className="py-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-gray-900">Gestion des Colis</h1>
       </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-6">
+        <ParcelStats />
+        <div className="bg-white shadow-sm rounded-lg">
+          {/* Filtres mobiles */}
+          <div className="block sm:hidden p-4 bg-gray-50 border-b">
+            <select
+              value={searchType}
+              onChange={(e) => setSearchType(e.target.value)}
+              className="w-full p-2 border rounded-lg mb-2"
+            >
+              <option value="tracking">N° de suivi</option>
+              <option value="recipient">Destinataire</option>
+              <option value="phone">Téléphone</option>
+            </select>
+          </div>
 
-      {/* Liste pour mobile */}
-      <div className="block sm:hidden">
-        <div className="divide-y divide-gray-200">
-          {parcels.map((parcel) => (
-            <div key={parcel.id} className="p-4 bg-white">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+          {/* Liste pour mobile */}
+          <div className="block sm:hidden">
+            <div className="divide-y divide-gray-200">
+              {parcels.map((parcel) => (
+                <div key={parcel.id} className="p-4 bg-white">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {format(new Date(parcel.created_at), 'dd MMM. yyyy', { locale: fr })}
+                      </div>
+                      <div className="mt-1">
+                        <div className="text-gray-900">{parcel.tracking_number}</div>
+                        <div className="text-gray-500 text-xs mt-1">{parcel.recipient_name}</div>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(parcel)}
+                        className="p-2 text-indigo-600 hover:text-indigo-900"
+                      >
+                        <EllipsisHorizontalIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(parcel)}
+                        className="p-2 text-red-600 hover:text-red-900"
+                      >
+                        <EllipsisHorizontalIcon className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-1">
-                    <div className="text-gray-900">{parcel.tracking_number}</div>
-                    <div className="text-gray-500 text-xs mt-1">{parcel.recipient_name}</div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    <div className="flex justify-between">
+                      <span>Pays:</span>
+                      <span className="font-medium">{getCountryFlag(parcel.country)}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Type d'envoi:</span>
+                      <span>{parcel.shipping_type}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Poids:</span>
+                      <span>{parcel.weight} kg</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Statut:</span>
+                      <span className={`font-medium ${getStatusColor(parcel.status)}`}>{getStatusLabel(parcel.status)}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleEdit(parcel)}
-                    className="p-2 text-indigo-600 hover:text-indigo-900"
-                  >
-                    <EllipsisHorizontalIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(parcel)}
-                    className="p-2 text-red-600 hover:text-red-900"
-                  >
-                    <EllipsisHorizontalIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="mt-2 text-sm text-gray-500">
-                <div className="flex justify-between">
-                  <span>Pays:</span>
-                  <span className="font-medium">{getCountryFlag(parcel.country)}</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Type d'envoi:</span>
-                  <span>{parcel.shipping_type}</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Poids:</span>
-                  <span>{parcel.weight} kg</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Statut:</span>
-                  <span className={`font-medium ${getStatusColor(parcel.status)}`}>{getStatusLabel(parcel.status)}</span>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Tableau pour desktop */}
-      <div className="hidden sm:block">
-        <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
-          <SearchBar
-            searchQuery={searchQuery}
-            searchType={searchType}
-            onSearchChange={handleSearchChange}
-            onSearchTypeChange={handleSearchTypeChange}
-            isSearchFocused={isSearchFocused}
-            setIsSearchFocused={setIsSearchFocused}
-          />
-          <div className="mt-4">
+          {/* Tableau pour desktop */}
+          <div className="hidden sm:block">
             <div className="mt-8">
-              <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                <div className="inline-block min-w-full py-2 align-middle">
-                  <div className="w-full overflow-x-auto px-4 md:px-6 lg:px-8">
-                    <div className="min-w-full bg-white rounded-lg shadow">
-                      <table className="min-w-full table-auto">
-                        <thead>
-                          <tr>
-                            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                              Date
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Numéro de suivi
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Destinataire
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Pays
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Type d'envoi
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Poids / CBM
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Statut
-                            </th>
-                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Prix Total
-                            </th>
-                            <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <span className="sr-only">Actions</span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
-                          {parcels.map((parcel) => (
-                            <ParcelTableRow 
-                              key={parcel.id}
-                              parcel={parcel}
-                              onViewDetails={handleViewDetails}
-                              onStatusChange={handleStatusChange}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              onViewInvoice={handleViewInvoice}
-                            />
-                          ))}
-                        </tbody>
-                      </table>
+              <h2 className="text-lg font-medium text-gray-900">Colis récents</h2>
+              <SearchBar
+                searchQuery={searchQuery}
+                searchType={searchType}
+                onSearchChange={handleSearchChange}
+                onSearchTypeChange={handleSearchTypeChange}
+                isSearchFocused={isSearchFocused}
+                setIsSearchFocused={setIsSearchFocused}
+              />
+              <div className="mt-4">
+                <div className="mt-8">
+                  <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div className="inline-block min-w-full py-2 align-middle">
+                      <div className="w-full overflow-x-auto px-4 md:px-6 lg:px-8">
+                        <div className="min-w-full bg-white rounded-lg shadow">
+                          <table className="min-w-full table-auto">
+                            <thead>
+                              <tr>
+                                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                                  Date
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Numéro de suivi
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Destinataire
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Pays
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Type d'envoi
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Poids / CBM
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Statut
+                                </th>
+                                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                  Prix Total
+                                </th>
+                                <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                  <span className="sr-only">Actions</span>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 bg-white">
+                              {parcels.map((parcel) => (
+                                <ParcelTableRow 
+                                  key={parcel.id}
+                                  parcel={parcel}
+                                  onViewDetails={handleViewDetails}
+                                  onStatusChange={handleStatusChange}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  onViewInvoice={handleViewInvoice}
+                                />
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -721,6 +730,6 @@ export default function ParcelList() {
           }}
         />
       )}
-    </>
+    </div>
   );
 }

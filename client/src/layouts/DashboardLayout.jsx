@@ -1,21 +1,23 @@
 import { Fragment, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { Dialog, Menu, Transition } from '@headlessui/react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  HomeIcon,
-  ArchiveBoxIcon,
-  UsersIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  BellIcon,
-  XMarkIcon,
   Bars3Icon,
-  InboxIcon,
-  TruckIcon,
-  MagnifyingGlassIcon,
+  BellIcon,
+  CalendarIcon,
+  ChartBarIcon,
+  FolderIcon,
+  HomeIcon,
+  UsersIcon,
+  XMarkIcon,
+  ArchiveBoxIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  ExclamationTriangleIcon,
+  InboxIcon,
+  TruckIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
 import { ParcelLineChart } from '@/components/dashboard/ParcelLineChart';
@@ -23,12 +25,14 @@ import { ParcelBarChart } from '@/components/dashboard/ParcelBarChart';
 import { RecentParcels } from '@/components/dashboard/RecentParcels';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { classNames } from '@/utils/classNames';
 
 const navigation = [
-  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, current: true },
-  { name: 'Colis', href: '/dashboard/parcels', icon: ArchiveBoxIcon, current: false },
-  { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon, current: false },
-  { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon, current: false },
+  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
+  { name: 'Colis', href: '/dashboard/parcels', icon: ArchiveBoxIcon },
+  { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
+  { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon },
 ];
 
 const userNavigation = [
@@ -44,15 +48,13 @@ const timeRanges = [
   { name: 'Année', value: 'year' },
 ];
 
-function classNames(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
-
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('week');
   const location = useLocation();
   const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const { toggleTheme, isDarkMode } = useTheme();
   const { data, loading, error } = useDashboardData();
 
   const handleSignOut = async () => {
@@ -61,6 +63,11 @@ export function DashboardLayout() {
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     }
+  };
+
+  const isCurrentPath = (path) => {
+    return location.pathname === path || 
+           (path !== '/dashboard' && location.pathname.startsWith(path));
   };
 
   if (loading) {
@@ -121,7 +128,7 @@ export function DashboardLayout() {
                               <Link
                                 to={item.href}
                                 className={classNames(
-                                  location.pathname === item.href
+                                  isCurrentPath(item.href)
                                     ? 'bg-emerald-600 text-white'
                                     : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-50',
                                   'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
@@ -129,7 +136,7 @@ export function DashboardLayout() {
                               >
                                 <item.icon
                                   className={classNames(
-                                    location.pathname === item.href ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
+                                    isCurrentPath(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
                                     'h-6 w-6 shrink-0'
                                   )}
                                   aria-hidden="true"
@@ -201,7 +208,7 @@ export function DashboardLayout() {
                       <Link
                         to={item.href}
                         className={classNames(
-                          location.pathname === item.href
+                          isCurrentPath(item.href)
                             ? 'bg-emerald-600 text-white'
                             : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-50',
                           'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
@@ -209,7 +216,7 @@ export function DashboardLayout() {
                       >
                         <item.icon
                           className={classNames(
-                            location.pathname === item.href ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
+                            isCurrentPath(item.href) ? 'text-white' : 'text-gray-400 group-hover:text-emerald-600',
                             'h-6 w-6 shrink-0'
                           )}
                           aria-hidden="true"
@@ -347,7 +354,7 @@ export function DashboardLayout() {
 
         <main className="py-10">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {location.pathname === '/dashboard' && (
+            {location.pathname === '/dashboard' ? (
               <>
                 <div className="mb-8">
                   <ParcelStats />
@@ -393,8 +400,9 @@ export function DashboardLayout() {
                   </div>
                 </div>
               </>
+            ) : (
+              <Outlet />
             )}
-            {location.pathname !== '/dashboard' && <Outlet />}
           </div>
         </main>
       </div>

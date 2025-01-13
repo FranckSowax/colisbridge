@@ -25,7 +25,7 @@ const CreateParcel = lazy(() => import('./pages/dashboard/CreateParcel'));
 const Statistics = lazy(() => import('./pages/dashboard/Statistics'));
 const ParcelList = lazy(() => import('./pages/dashboard/ParcelList'));
 const ParcelDetails = lazy(() => import('./pages/dashboard/ParcelDetails'));
-const Clients = lazy(() => import('./pages/dashboard/Clients'));
+const ClientList = lazy(() => import('./pages/dashboard/ClientList'));
 const Profile = lazy(() => import('./pages/dashboard/Profile'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Disputes = lazy(() => import('./pages/dashboard/Disputes'));
@@ -64,7 +64,7 @@ export default function App() {
                     <Route path="statistics" element={<Statistics />} />
                     <Route path="parcels" element={<ParcelList />} />
                     <Route path="parcel-details" element={<ParcelDetails />} />
-                    <Route path="clients" element={<Clients />} />
+                    <Route path="clients" element={<ClientList />} />
                     <Route path="profile" element={<Profile />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="disputes" element={<Disputes />} />
