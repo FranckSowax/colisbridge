@@ -18,7 +18,8 @@ import {
   InboxIcon,
   TruckIcon,
   MagnifyingGlassIcon,
-  PlusIcon
+  PlusIcon,
+  UserIcon
 } from '@heroicons/react/24/outline/index.js';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
 import { ParcelLineChart } from '@/components/dashboard/ParcelLineChart';
@@ -37,10 +38,12 @@ const navigation = [
   { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
   { name: 'Litiges', href: '/dashboard/disputes', icon: ExclamationTriangleIcon },
   { name: 'Statistiques', href: '/dashboard/statistics', icon: ChartBarIcon },
+  { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ];
 
 const userNavigation = [
-  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'Mon profil', href: '/dashboard/profile', icon: UserIcon },
+  { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
   { name: 'Déconnexion', href: '#', icon: ArrowRightOnRectangleIcon },
 ];
 

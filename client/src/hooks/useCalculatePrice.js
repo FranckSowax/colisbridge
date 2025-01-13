@@ -40,6 +40,9 @@ export const useCalculatePrice = ({ country, shippingType, weight, cbm }) => {
         currency: rules.currency
       };
     },
-    enabled: Boolean(country && shippingType && (weight || cbm))
+    enabled: Boolean(country && shippingType && (weight || cbm)),
+    staleTime: 30000, // 30 secondes
+    cacheTime: 60000, // 1 minute
+    retry: 1
   });
 };

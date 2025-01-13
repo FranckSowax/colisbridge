@@ -234,6 +234,198 @@ const Dashboard = () => {
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+        <div className="py-4 sm:py-6">
+          {/* Graphiques */}
+          <div className="px-4 sm:px-6 lg:px-8 space-y-6">
+            {/* Évolution mensuelle */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Évolution mensuelle
+              </h3>
+              <div className="h-[300px] sm:h-[400px]">
+                <ResponsiveLine
+                  data={[]}
+                  margin={{ top: 20, right: 20, bottom: 60, left: 40 }}
+                  xScale={{ type: 'point' }}
+                  yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                  theme={{
+                    axis: {
+                      ticks: {
+                        text: {
+                          fill: '#4B5563',
+                          fontSize: 12
+                        }
+                      },
+                      legend: {
+                        text: {
+                          fill: '#4B5563',
+                          fontSize: 12
+                        }
+                      }
+                    },
+                    grid: {
+                      line: {
+                        stroke: '#E5E7EB'
+                      }
+                    },
+                    legends: {
+                      text: {
+                        fill: '#4B5563',
+                        fontSize: 12
+                      }
+                    }
+                  }}
+                  colors={['#3B82F6', '#6366F1', '#8B5CF6', '#10B981', '#F59E0B']}
+                  enablePoints={true}
+                  pointSize={8}
+                  pointColor={{ theme: 'background' }}
+                  pointBorderWidth={2}
+                  pointBorderColor={{ from: 'serieColor' }}
+                  enableGridX={false}
+                  enableGridY={true}
+                  axisTop={null}
+                  axisRight={null}
+                  axisBottom={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: -45
+                  }}
+                  axisLeft={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: 0
+                  }}
+                  legends={[
+                    {
+                      anchor: 'bottom',
+                      direction: 'row',
+                      justify: false,
+                      translateX: 0,
+                      translateY: 50,
+                      itemsSpacing: 0,
+                      itemDirection: 'left-to-right',
+                      itemWidth: 80,
+                      itemHeight: 20,
+                      symbolSize: 12,
+                      symbolShape: 'circle'
+                    }
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* Distribution des colis */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Distribution des colis
+              </h3>
+              <div className="h-[300px] sm:h-[400px]">
+                <ResponsivePie
+                  data={[]}
+                  margin={{ top: 20, right: 20, bottom: 60, left: 20 }}
+                  innerRadius={0.5}
+                  padAngle={0.7}
+                  cornerRadius={3}
+                  theme={{
+                    labels: {
+                      text: {
+                        fill: '#4B5563',
+                        fontSize: 12
+                      }
+                    },
+                    legends: {
+                      text: {
+                        fill: '#4B5563',
+                        fontSize: 12
+                      }
+                    }
+                  }}
+                  colors={['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B']}
+                  borderWidth={1}
+                  borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
+                  enableArcLinkLabels={false}
+                  arcLabelsSkipAngle={10}
+                  legends={[
+                    {
+                      anchor: 'bottom',
+                      direction: 'row',
+                      justify: false,
+                      translateX: 0,
+                      translateY: 40,
+                      itemsSpacing: 0,
+                      itemWidth: 80,
+                      itemHeight: 20,
+                      symbolSize: 12,
+                      symbolShape: 'circle'
+                    }
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* Table des colis récents */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Colis récents
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        Numéro de suivi
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        Date de création
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Destinataire
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {recentParcels.map((parcel) => (
+                      <tr key={parcel.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium whitespace-nowrap">
+                          {parcel.tracking_number}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                          {format(new Date(parcel.created_at), 'dd/MM/yyyy')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {parcel.recipient}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between">
+                  <button
+                    onClick={() => {}}
+                    disabled={true}
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    onClick={() => {}}
+                    disabled={true}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <ErrorBoundary
         FallbackComponent={ErrorFallback}
         onReset={() => {

@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment, useEffect, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
 import { PhotoIcon, PlusIcon } from '@heroicons/react/24/solid';
@@ -14,6 +14,8 @@ import { notificationService } from '../services/notificationService';
 import { useAuth } from '@contexts/AuthContext';
 import { photoService } from '../services/photoService';
 import PhotoUpload from './PhotoUpload';
+import debounce from 'lodash/debounce';
+import { useSearchRecipients } from '../hooks/useSearchRecipients';
 
 const SHIPPING_TYPES = [
   { id: 'Standard', name: 'parcels.form.shippingType.standard' },
@@ -32,6 +34,8 @@ const COUNTRIES = [
 const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { t, loading: langLoading } = useLanguage();
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: searchResults, isLoading: isSearching } = useSearchRecipients(searchQuery);
   
   // Si le contexte de langue n'est pas encore chargé, on affiche un loader
   if (langLoading) {
@@ -93,15 +97,22 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
   const { data: recipients, isLoading: recipientsLoading } = useRecipients();
   const createParcelMutation = useCreateParcel();
   const createRecipientMutation = useCreateRecipient();
-  const { data: priceData, refetch: refetchPrice } = useCalculatePrice({
+  const { data: priceData, isLoading: isPriceLoading, refetch: refetchPrice } = useCalculatePrice({
     country: formData.country,
     shippingType: formData.shipping_type,
     weight: formData.weight ? parseFloat(formData.weight) : null,
     cbm: formData.cbm ? parseFloat(formData.cbm) : null
   });
 
+  const debouncedRefetchPrice = useCallback(
+    debounce(() => {
+      refetchPrice();
+    }, 500),
+    [refetchPrice]
+  );
+
   const displayPrice = () => {
-    if (priceData === undefined) return t('parcels.form.shipping.calculating');
+    if (isPriceLoading) return t('parcels.form.shipping.calculating');
     if (!priceData) return '-';
     return priceData.formatted;
   };
@@ -165,7 +176,7 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
     });
 
     if (['country', 'shipping_type', 'weight', 'cbm'].includes(name)) {
-      await refetchPrice();
+      debouncedRefetchPrice();
     }
   };
 
@@ -242,8 +253,15 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
         return;
       }
 
-      if (!priceData || !priceData.total) {
-        toast.error(t('parcels.form.errors.priceCalculation'));
+      // Vérifier si le prix est en cours de calcul
+      if (isPriceLoading) {
+        toast.error(t('parcels.form.errors.priceCalculating'));
+        return;
+      }
+
+      // Vérifier si le prix est disponible
+      if (!priceData) {
+        toast.error(t('parcels.form.errors.priceNotAvailable'));
         return;
       }
 
@@ -256,6 +274,8 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
         special_instructions: formData.special_instructions || null,
         dimensions: formData.dimensions || null,
         weight: formData.weight ? Number(formData.weight) : 0,
+        total_amount: priceData.total,
+        currency: priceData.currency,
         // Pour un nouveau destinataire, recipient_id sera null
         recipient_id: formData.recipient_id === 'new' ? null : formData.recipient_id,
         // Ajouter l'ID de l'utilisateur
@@ -292,6 +312,17 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
         toast.error(t('parcels.form.errors.parcelCreation'));
       }
     }
+  };
+
+  const handleRecipientSelect = (recipient) => {
+    setFormData(prev => ({
+      ...prev,
+      recipient_name: recipient.recipient_name,
+      recipient_phone: recipient.recipient_phone,
+      recipient_email: recipient.recipient_email || '',
+      recipient_address: recipient.recipient_address || ''
+    }));
+    setSearchQuery('');
   };
 
   return (
@@ -414,6 +445,48 @@ const NewParcelForm = ({ isOpen, onClose, onSuccess }) => {
                       </Combobox>
                     </div>
 
+                    {/* Recherche de destinataire */}
+                    <div className="relative mb-4">
+                      <label htmlFor="recipient_search" className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('parcels.form.recipientSearch')}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="recipient_search"
+                          className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          placeholder={t('parcels.form.searchPlaceholder')}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {isSearching && (
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <div className="animate-spin h-4 w-4 border-2 border-indigo-600 rounded-full border-t-transparent"></div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Résultats de recherche */}
+                      {searchQuery.length >= 2 && searchResults && searchResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                          {searchResults.map((recipient, index) => (
+                            <button
+                              key={`${recipient.recipient_name}-${recipient.recipient_phone}-${index}`}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => handleRecipientSelect(recipient)}
+                            >
+                              <div className="font-medium">{recipient.recipient_name}</div>
+                              <div className="text-sm text-gray-500">{recipient.recipient_phone}</div>
+                              {recipient.recipient_address && (
+                                <div className="text-sm text-gray-500 truncate">{recipient.recipient_address}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Formulaire existant */}
                     <div className="space-y-4">
                       <div className="mt-4">
                         <label

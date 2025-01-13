@@ -8,5 +8,15 @@
       "completed": "Terminé",
       "disputed": "En litige"
     }
+  },
+  "parcels": {
+    "form": {
+      "errors": {
+        "priceCalculating": "Le prix est en cours de calcul, veuillez patienter...",
+        "priceNotAvailable": "Le prix n'est pas disponible. Veuillez vérifier les informations saisies."
+      },
+      "recipientSearch": "Rechercher un destinataire",
+      "searchPlaceholder": "Rechercher par nom ou téléphone..."
+    }
   }
 }
