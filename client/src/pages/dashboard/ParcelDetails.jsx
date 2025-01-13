@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../../config/supabaseClient';

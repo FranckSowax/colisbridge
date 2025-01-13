@@ -5,7 +5,7 @@ import {
   ArchiveBoxIcon,
   GlobeEuropeAfricaIcon,
   BuildingOfficeIcon
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 export default function ClientStats() {
   const [stats, setStats] = useState({

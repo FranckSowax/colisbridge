@@ -7,7 +7,7 @@ import {
   ExclamationTriangleIcon,
   ChartBarIcon,
   UserCircleIcon 
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },

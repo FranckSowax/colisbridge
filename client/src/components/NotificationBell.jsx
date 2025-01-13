@@ -1,6 +1,6 @@
 import React, { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon as BellIconOutline } from '@heroicons/react/24/outline';
+import { BellIcon as BellIconOutline } from '@heroicons/react/24/outline/index.js';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 import { useNotifications } from '../hooks/useNotifications';
 import { format } from 'date-fns';

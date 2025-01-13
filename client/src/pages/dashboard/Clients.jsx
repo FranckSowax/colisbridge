@@ -4,7 +4,7 @@ import { supabase } from '../../config/supabaseClient';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline/index.js';
 
 export default function ClientList() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();

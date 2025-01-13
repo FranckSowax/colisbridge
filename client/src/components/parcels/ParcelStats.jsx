@@ -5,7 +5,7 @@ import {
   TruckIcon, 
   CheckCircleIcon, 
   ExclamationTriangleIcon 
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 export function ParcelStats() {
   const [stats, setStats] = useState({

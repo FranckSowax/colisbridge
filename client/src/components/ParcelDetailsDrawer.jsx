@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
 import { formatDate } from '@utils/dateUtils';
 import { formatCurrency } from '@utils/currencyUtils';
 import ParcelPhotos from './ParcelPhotos';

@@ -1,4 +1,4 @@
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline/index.js';
 import { useState } from 'react';
 
 export default function ClientSearch({ onSearch }) {

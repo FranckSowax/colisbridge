@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Disclosure, Menu, Transition } from '@headlessui/react'
-import { BellIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { BellIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline/index.js'
 import { useTheme } from '../contexts/ThemeContext'
 import { useLanguage } from '../contexts/LanguageContext'
 

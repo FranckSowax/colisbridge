@@ -10,7 +10,7 @@ import {
   ChatBubbleLeftIcon,
   DocumentTextIcon,
   UserIcon
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 const disputeStatuses = {
   ouvert: { name: 'Ouvert', color: 'bg-yellow-100 text-yellow-800' },

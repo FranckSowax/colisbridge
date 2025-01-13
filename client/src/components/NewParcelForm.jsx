@@ -1,6 +1,6 @@
 import React, { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
 import { PhotoIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 import { Combobox } from '@headlessui/react';

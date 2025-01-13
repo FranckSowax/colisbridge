@@ -4,7 +4,7 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   UserIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 import { getCountryWithFlag } from '@/utils/countryFlags';
 
 export function ClientDetails({ client }) {

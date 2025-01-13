@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from '../../components/SearchBar';
 import toast from 'react-hot-toast';
-import { MagnifyingGlassIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline/index.js';
 
 export default function DisputeList() {
   const { user } = useAuth();

@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline/index.js';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../config/supabaseClient';
 import { useParcelPrice } from '../hooks/useParcelPrice';

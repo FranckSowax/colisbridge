@@ -2,7 +2,7 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import fr from 'date-fns/locale/fr';
-import { XMarkIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhotoIcon } from '@heroicons/react/24/outline/index.js';
 import { supabase } from '../config/supabaseClient';
 
 export default function ParcelDetailsModal({ isOpen, onClose, parcel }) {

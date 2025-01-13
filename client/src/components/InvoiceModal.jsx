@@ -1,7 +1,7 @@
 import React, { useState, Suspense } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import InvoicePDF from './InvoicePDF';
 

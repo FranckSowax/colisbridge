@@ -19,7 +19,7 @@ import {
   TruckIcon,
   MagnifyingGlassIcon,
   PlusIcon
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
 import { ParcelLineChart } from '@/components/dashboard/ParcelLineChart';
 import { ParcelBarChart } from '@/components/dashboard/ParcelBarChart';

@@ -4,7 +4,7 @@ import {
   TruckIcon, 
   CheckCircleIcon,
   ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 const statuses = [
   {

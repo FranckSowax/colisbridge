@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getCountryWithFlag } from '@/utils/countryFlags';
-import { EyeIcon } from '@heroicons/react/24/outline';
+import { EyeIcon } from '@heroicons/react/24/outline/index.js';
 import { useState } from 'react';
 import { ClientDetails } from './ClientDetails';
 

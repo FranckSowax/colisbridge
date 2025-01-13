@@ -1,7 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { UserIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, InboxIcon } from '@heroicons/react/24/outline';
+import { UserIcon, PhoneIcon, EnvelopeIcon, CalendarIcon, InboxIcon } from '@heroicons/react/24/outline/index.js';
 
 export default function ClientCard({ client, onViewParcels }) {
   const formatDate = (date) => {

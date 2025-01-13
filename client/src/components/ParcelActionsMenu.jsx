@@ -6,7 +6,7 @@ import {
   TrashIcon, 
   DocumentTextIcon,
   EyeIcon 
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');

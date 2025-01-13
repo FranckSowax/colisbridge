@@ -5,7 +5,7 @@ import {
   QrCodeIcon,
   DocumentDuplicateIcon,
   ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline/index.js';
 
 const actions = [
   {

@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { BellIcon } from '@heroicons/react/24/outline/index.js';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../config/supabaseClient';
