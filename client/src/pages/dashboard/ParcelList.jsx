@@ -16,6 +16,7 @@ import { useParcelPrice } from '@/hooks/useParcelPrice';
 import { generateInvoice } from '@/services/invoiceService';
 import PDFViewer from '@/components/PDFViewer';
 import { ParcelStats } from '@/components/parcels/ParcelStats';
+import InvoiceModal from '@/components/InvoiceModal';
 
 const COUNTRIES = {
   gabon: { name: 'Gabon', flag: '🇬🇦', currency: 'XAF' },
@@ -186,8 +187,7 @@ export default function ParcelList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [showPDFViewer, setShowPDFViewer] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
   const fetchParcels = async () => {
     let query = supabase
@@ -438,11 +438,8 @@ export default function ParcelList() {
 
   const handleViewInvoice = async (parcel) => {
     try {
-      const pdfDoc = await generateInvoice(parcel);
-      const pdfBlob = pdfDoc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      setPdfUrl(pdfUrl);
-      setShowPDFViewer(true);
+      setSelectedParcel(parcel);
+      setIsInvoiceModalOpen(true);
     } catch (error) {
       console.error('Erreur lors de la génération de la facture:', error);
       toast.error('Impossible de générer la facture');
@@ -690,16 +687,11 @@ export default function ParcelList() {
         parcel={selectedParcel}
       />
       
-      {showPDFViewer && pdfUrl && (
-        <PDFViewer
-          url={pdfUrl}
-          onClose={() => {
-            setShowPDFViewer(false);
-            URL.revokeObjectURL(pdfUrl);
-            setPdfUrl(null);
-          }}
-        />
-      )}
+      <InvoiceModal
+        open={isInvoiceModalOpen}
+        setOpen={setIsInvoiceModalOpen}
+        invoiceData={selectedParcel}
+      />
     </div>
   );
 }

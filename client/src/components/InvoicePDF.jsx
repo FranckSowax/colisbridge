@@ -1,8 +1,8 @@
-import React from 'react';
-import { useCalculatePrice } from '../hooks/useCalculatePrice';
+import React, { useEffect, useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { supabase } from '../config/supabaseClient';
 
 const LOGO_URL = 'https://i.imgur.com/ZU2ZGQk.png';
 
@@ -109,25 +109,79 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
+  invoiceHeader: {
+    marginBottom: 20,
+  },
+  column: {
+    flex: 1,
+  },
+  tableHeaderCell: {
+    flex: 1,
+  },
+  alignRight: {
+    textAlign: 'right',
+  },
+  footerText: {
+    fontSize: 10,
+  },
+  footerLinks: {
+    fontSize: 10,
+    textDecoration: 'underline',
+  },
 });
 
-const InvoicePDF = ({ data }) => {
-  const { data: priceData } = useCalculatePrice({
-    country: data?.country,
-    shippingType: data?.shipping_type,
-    weight: data?.weight,
-    cbm: data?.volume
-  });
+const calculatePrice = async ({ country, shippingType, weight, cbm }) => {
+  if (!country || !shippingType || (!weight && !cbm)) {
+    return 0;
+  }
 
-  const total = priceData?.total || 0;
-  const formattedTotal = total + ' FCFA';
+  try {
+    const { data: rules, error } = await supabase
+      .from('pricing_rules')
+      .select('*')
+      .eq('country_code', country.toLowerCase())
+      .eq('shipping_type', shippingType.toLowerCase())
+      .single();
+
+    if (error) throw error;
+    if (!rules) return 0;
+
+    let totalPrice = 0;
+    if (rules.unit_type === 'kg' && weight) {
+      totalPrice = rules.price_per_unit * weight;
+    } else if (rules.unit_type === 'cbm' && cbm) {
+      totalPrice = rules.price_per_unit * cbm;
+    }
+
+    return totalPrice;
+  } catch (error) {
+    console.error('Error calculating price:', error);
+    return 0;
+  }
+};
+
+const InvoicePDF = ({ data }) => {
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      const price = await calculatePrice({
+        country: data?.country,
+        shippingType: data?.shipping_type,
+        weight: data?.weight,
+        cbm: data?.volume
+      });
+      setTotal(price);
+    };
+
+    fetchPrice();
+  }, [data]);
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* En-tête */}
         <View style={styles.header}>
-          <Image source={LOGO_URL} style={styles.logo} />
+          <Image src={LOGO_URL} style={styles.logo} />
           <View style={styles.companyInfo}>
             <Text style={styles.companyName}>TWINSK COMPANY</Text>
             <Text>506, Tongyue Building</Text>
@@ -139,68 +193,63 @@ const InvoicePDF = ({ data }) => {
           </View>
         </View>
 
-        {/* Numéro de facture et date */}
+        <View style={styles.invoiceHeader}>
+          <Text style={styles.title}>FACTURE #{data?.tracking_number || ''}</Text>
+          <Text>Date d'émission : {format(new Date(), 'dd MMMM yyyy', { locale: fr })}</Text>
+        </View>
+
         <View style={styles.section}>
-          <Text style={styles.title}>FACTURE #{data?.reference}</Text>
-          <Text style={styles.date}>
-            Date d'émission : {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
-          </Text>
-        </View>
-
-        {/* Sections DESTINATAIRE et EXPÉDITION */}
-        <View style={styles.infoGrid}>
-          <View style={styles.infoColumn}>
+          <View style={styles.column}>
             <Text style={styles.sectionTitle}>DESTINATAIRE</Text>
-            <Text>{data?.recipient_name}</Text>
-            <Text>{data?.recipient_address}</Text>
+            <Text>{data?.recipient_name || ''}</Text>
+            <Text>Tel: {data?.recipient_phone || ''}</Text>
           </View>
-          <View style={styles.infoColumn}>
+          <View style={styles.column}>
             <Text style={styles.sectionTitle}>EXPÉDITION</Text>
-            <Text>Type: {data?.shipping_type || 'Standard'}</Text>
-            <Text>Destination: {data?.destination}</Text>
+            <Text>Type: {data?.shipping_type || ''}</Text>
+            <Text>Destination: {data?.country ? data.country.toUpperCase() : ''}</Text>
           </View>
         </View>
 
-        {/* Section DÉTAILS DU COLIS */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>DÉTAILS DU COLIS</Text>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <Text style={styles.tableCell}>Description</Text>
-              <Text style={styles.tableCell}>Type d'envoi</Text>
-              <Text style={styles.tableCell}>Poids/Volume</Text>
-              <Text style={styles.tableCellRight}>Prix</Text>
+              <Text style={styles.tableHeaderCell}>Description</Text>
+              <Text style={styles.tableHeaderCell}>Type d'envoi</Text>
+              <Text style={styles.tableHeaderCell}>Poids/Volume</Text>
+              <Text style={[styles.tableHeaderCell, styles.alignRight]}>Prix</Text>
             </View>
             <View style={styles.tableRow}>
               <Text style={styles.tableCell}>Colis</Text>
-              <Text style={styles.tableCell}>{data?.shipping_type || 'Standard'}</Text>
-              <Text style={styles.tableCell}>{data?.weight} kg</Text>
-              <Text style={styles.tableCellRight}>{formattedTotal}</Text>
+              <Text style={styles.tableCell}>{data?.shipping_type || ''}</Text>
+              <Text style={styles.tableCell}>{data?.weight ? `${data.weight} kg` : ''}</Text>
+              <Text style={[styles.tableCell, styles.alignRight]}>{total} XAF</Text>
             </View>
           </View>
         </View>
 
-        {/* Totaux */}
         <View style={styles.totals}>
           <View style={styles.totalRow}>
             <Text>Sous-total</Text>
-            <Text>{formattedTotal}</Text>
+            <Text>{total} XAF</Text>
           </View>
           <View style={styles.totalRow}>
             <Text>TVA (0%)</Text>
             <Text>0 FCFA</Text>
           </View>
-          <View style={styles.totalRowBold}>
+          <View style={[styles.totalRow, styles.totalRowBold]}>
             <Text>Total</Text>
-            <Text>{formattedTotal}</Text>
+            <Text>{total} XAF</Text>
           </View>
         </View>
 
-        {/* Pied de page */}
         <View style={styles.footer}>
-          <Text>Please make all checks payable to TWINSK LOGISTICS.</Text>
-          <Text>Thanks for your business</Text>
-          <Text>Logistics@twinskcompanyltd.com | www.twinskcompanyltd.com</Text>
+          <Text style={styles.footerText}>Please make all checks payable to TWINSK LOGISTICS.</Text>
+          <Text style={styles.footerText}>Thanks for your business</Text>
+          <Text style={styles.footerLinks}>
+            Logistics@twinskcompanyltd.com | www.twinskcompanyltd.com
+          </Text>
         </View>
       </Page>
     </Document>

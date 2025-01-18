@@ -5,19 +5,22 @@ import { fr } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline/index.js';
-import { Menu } from '@headlessui/react';
-import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { Menu } from '@headlessui/react';
+import { EllipsisVerticalIcon } from '@heroicons/react/24/solid';
 
 export function ParcelList() {
   const [parcels, setParcels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedParcel, setSelectedParcel] = useState(null);
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputePriority, setDisputePriority] = useState('normale');
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -120,6 +123,44 @@ export function ParcelList() {
     }
   };
 
+  const handleAction = (action, parcel) => {
+    setSelectedParcel(parcel);
+    switch (action) {
+      case 'details':
+        setIsDetailsModalOpen(true);
+        break;
+      case 'invoice':
+        setIsInvoiceModalOpen(true);
+        break;
+      case 'edit':
+        setIsEditModalOpen(true);
+        break;
+      case 'delete':
+        setIsDeleteModalOpen(true);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('parcels')
+        .delete()
+        .eq('id', selectedParcel.id);
+
+      if (error) throw error;
+
+      toast.success(t('parcels.deleteSuccess'));
+      setIsDeleteModalOpen(false);
+      fetchParcels();
+    } catch (error) {
+      console.error('Error deleting parcel:', error);
+      toast.error(t('parcels.deleteError'));
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       'receptionne': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
@@ -152,23 +193,6 @@ export function ParcelList() {
     return countryNames[countryCode?.toLowerCase()] || countryCode?.toUpperCase() || '';
   };
 
-  const handleViewInvoice = (parcel) => {
-    // Logique pour voir la facture
-  };
-
-  const handleEdit = (parcel) => {
-    // Logique pour modifier
-  };
-
-  const handleDelete = (parcel) => {
-    // Logique pour supprimer
-  };
-
-  const handleViewDetails = (parcel) => {
-    setSelectedParcel(parcel);
-    setIsModalOpen(true);
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -186,118 +210,130 @@ export function ParcelList() {
   }
 
   return (
-    <div className="bg-gray-50 p-4">
-      <div className="sm:flex sm:items-center mb-6">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">{t('parcels.title')}</h1>
-          <p className="mt-2 text-sm text-gray-700">{t('parcels.description')}</p>
+    <div className="bg-white shadow-sm rounded-lg">
+      <div className="px-4 py-5 sm:p-6">
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-xl font-semibold text-gray-900">{t('parcels.title')}</h1>
+            <p className="mt-2 text-sm text-gray-700">
+              {t('parcels.description')}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Vue mobile existante avec ajout du menu d'actions */}
-      <div className="block sm:hidden space-y-4">
-        {parcels.map((parcel) => (
-          <div key={parcel.id} className="bg-white rounded-lg shadow">
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{parcel.reference}</h3>
-                  <div className="mt-2 text-sm text-gray-500">
-                    <p>{parcel.sender_name}</p>
-                    <p>{parcel.destinataire}</p>
-                    <p>{format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}</p>
+        {/* Vue mobile */}
+        <div className="block sm:hidden mt-4">
+          <div className="space-y-4">
+            {parcels.map((parcel) => (
+              <div key={parcel.id} className="bg-white rounded-lg border p-4 relative">
+                <div className="absolute top-2 right-2">
+                  <Menu as="div" className="relative inline-block text-left">
+                    <Menu.Button className="flex items-center p-2 text-gray-400 hover:text-gray-600">
+                      <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
+                    </Menu.Button>
+                    <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div className="py-1">
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleAction('details', parcel)}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
+                            >
+                              {t('parcels.actions.details')}
+                            </button>
+                          )}
+                        </Menu.Item>
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleAction('invoice', parcel)}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
+                            >
+                              {t('parcels.actions.invoice')}
+                            </button>
+                          )}
+                        </Menu.Item>
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleAction('edit', parcel)}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
+                            >
+                              {t('parcels.actions.edit')}
+                            </button>
+                          )}
+                        </Menu.Item>
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleAction('delete', parcel)}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
+                            >
+                              {t('parcels.actions.delete')}
+                            </button>
+                          )}
+                        </Menu.Item>
+                      </div>
+                    </Menu.Items>
+                  </Menu>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900">{parcel.reference}</p>
+                      <p className="text-sm text-gray-500">{parcel.sender_name}</p>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      getStatusColor(parcel.status)
-                    }`}>
-                      {t(`parcels.status.${parcel.status}`)}
-                    </span>
+                  <div>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">{t('parcels.recipient')}:</span> {parcel.destinataire}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">{t('parcels.destination')}:</span>{' '}
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-lg">{getCountryFlag(parcel.country)}</span>
+                        <span>{getCountryName(parcel.country)}</span>
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">{t('parcels.date')}:</span>{' '}
+                      {format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}
+                    </p>
+                  </div>
+                  <div>
+                    <select
+                      value={parcel.status}
+                      onChange={(e) => handleStatusChange(parcel, e.target.value)}
+                      className={`mt-2 rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(parcel.status)}`}
+                    >
+                      <option value="receptionne">{t('parcels.status.receptionne')}</option>
+                      <option value="expedie">{t('parcels.status.expedie')}</option>
+                      <option value="recu">{t('parcels.status.recu')}</option>
+                      <option value="litige">{t('parcels.status.litige')}</option>
+                    </select>
                   </div>
                 </div>
-                {/* Menu d'actions */}
-                <Menu as="div" className="relative">
-                  <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
-                    <EllipsisVerticalIcon className="h-5 w-5" />
-                  </Menu.Button>
-                  <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleViewDetails(parcel)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                        >
-                          {t('parcels.actions.viewDetails')}
-                        </button>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleViewInvoice(parcel)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                        >
-                          {t('parcels.actions.viewInvoice')}
-                        </button>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleEdit(parcel)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                        >
-                          {t('parcels.actions.edit')}
-                        </button>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleDelete(parcel)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-red-700 w-full text-left`}
-                        >
-                          {t('parcels.actions.delete')}
-                        </button>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleStatusChange(parcel, 'litige')}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-yellow-700 w-full text-left`}
-                        >
-                          {t('parcels.status.litige')}
-                        </button>
-                      )}
-                    </Menu.Item>
-                  </Menu.Items>
-                </Menu>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Vue desktop existante */}
-      <div className="hidden sm:block">
-        <div className="mt-8 flow-root">
+        {/* Vue desktop */}
+        <div className="hidden sm:block mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
               <table className="min-w-full divide-y divide-gray-300">
                 <thead>
                   <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
                       {t('parcels.columns.reference')}
                     </th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -310,17 +346,17 @@ export function ParcelList() {
                       {t('parcels.columns.destination')}
                     </th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      {t('parcels.columns.status')}
+                      {t('parcels.columns.date')}
                     </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
-                      <span className="sr-only">Actions</span>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      {t('parcels.columns.status')}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {parcels.map((parcel) => (
                     <tr key={parcel.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                         {parcel.reference}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -335,81 +371,20 @@ export function ParcelList() {
                           <span>{getCountryName(parcel.country)}</span>
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          getStatusColor(parcel.status)
-                        }`}>
-                          {t(`parcels.status.${parcel.status}`)}
-                        </span>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {format(new Date(parcel.created_at), 'dd MMM yyyy', { locale: fr })}
                       </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium">
-                        <Menu as="div" className="relative inline-block text-left">
-                          <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
-                            <EllipsisVerticalIcon className="h-5 w-5" />
-                          </Menu.Button>
-                          <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button
-                                  onClick={() => handleViewDetails(parcel)}
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                                >
-                                  {t('parcels.actions.viewDetails')}
-                                </button>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button
-                                  onClick={() => handleViewInvoice(parcel)}
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                                >
-                                  {t('parcels.actions.viewInvoice')}
-                                </button>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button
-                                  onClick={() => handleEdit(parcel)}
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } block px-4 py-2 text-sm text-gray-700 w-full text-left`}
-                                >
-                                  {t('parcels.actions.edit')}
-                                </button>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button
-                                  onClick={() => handleDelete(parcel)}
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } block px-4 py-2 text-sm text-red-700 w-full text-left`}
-                                >
-                                  {t('parcels.actions.delete')}
-                                </button>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button
-                                  onClick={() => handleStatusChange(parcel, 'litige')}
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } block px-4 py-2 text-sm text-yellow-700 w-full text-left`}
-                                >
-                                  {t('parcels.status.litige')}
-                                </button>
-                              )}
-                            </Menu.Item>
-                          </Menu.Items>
-                        </Menu>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <select
+                          value={parcel.status}
+                          onChange={(e) => handleStatusChange(parcel, e.target.value)}
+                          className={`rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(parcel.status)}`}
+                        >
+                          <option value="receptionne">{t('parcels.status.receptionne')}</option>
+                          <option value="expedie">{t('parcels.status.expedie')}</option>
+                          <option value="recu">{t('parcels.status.recu')}</option>
+                          <option value="litige">{t('parcels.status.litige')}</option>
+                        </select>
                       </td>
                     </tr>
                   ))}
@@ -419,6 +394,117 @@ export function ParcelList() {
           </div>
         </div>
       </div>
+
+      {/* Modal de détails */}
+      <Dialog
+        as="div"
+        className="relative z-50"
+        open={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+      >
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-xl rounded-xl bg-white p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-lg font-medium">
+                {t('parcels.details.title')}
+              </Dialog.Title>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-500"
+                onClick={() => setIsDetailsModalOpen(false)}
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.reference')}</h3>
+                <p className="text-gray-500">{selectedParcel?.reference}</p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.sender')}</h3>
+                <p className="text-gray-500">{selectedParcel?.sender_name}</p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.recipient')}</h3>
+                <p className="text-gray-500">{selectedParcel?.destinataire}</p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.destination')}</h3>
+                <p className="text-gray-500">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-lg">{getCountryFlag(selectedParcel?.country)}</span>
+                    <span>{getCountryName(selectedParcel?.country)}</span>
+                  </span>
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.date')}</h3>
+                <p className="text-gray-500">
+                  {selectedParcel?.created_at && format(new Date(selectedParcel.created_at), 'dd MMMM yyyy', { locale: fr })}
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">{t('parcels.details.status')}</h3>
+                <p className={`inline-flex rounded-full px-2 text-xs font-semibold ${getStatusColor(selectedParcel?.status)}`}>
+                  {t(`parcels.status.${selectedParcel?.status}`)}
+                </p>
+              </div>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Modal de confirmation de suppression */}
+      <Dialog
+        as="div"
+        className="relative z-50"
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      >
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-sm rounded-xl bg-white p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-lg font-medium text-gray-900">
+                {t('parcels.delete.title')}
+              </Dialog.Title>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-500"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500">
+              {t('parcels.delete.confirmation', { reference: selectedParcel?.reference })}
+            </p>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                onClick={handleDelete}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
 
       {/* Modal de création de litige */}
       <Dialog
@@ -500,69 +586,6 @@ export function ParcelList() {
                 </button>
               </div>
             </form>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
-
-      {/* Modal pour voir les détails du colis */}
-      <Dialog
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        className="relative z-50"
-      >
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-            <Dialog.Title
-              as="h3"
-              className="text-lg font-medium leading-6 text-gray-900 mb-4"
-            >
-              {t('parcels.details.title')}
-            </Dialog.Title>
-            {selectedParcel && (
-              <div className="space-y-4">
-                <div className="aspect-w-16 aspect-h-9">
-                  <img
-                    src={selectedParcel.image_url}
-                    alt={t('parcels.details.imageAlt')}
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">{t('parcels.details.reference')}</p>
-                    <p className="mt-1">{selectedParcel.reference}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">{t('parcels.details.sender')}</p>
-                    <p className="mt-1">{selectedParcel.sender_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">{t('parcels.details.recipient')}</p>
-                    <p className="mt-1">{selectedParcel.destinataire}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">{t('parcels.details.status')}</p>
-                    <p className="mt-1">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        getStatusColor(selectedParcel.status)
-                      }`}>
-                        {t(`parcels.status.${selectedParcel.status}`)}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="mt-6">
-              <button
-                type="button"
-                className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                onClick={() => setIsModalOpen(false)}
-              >
-                {t('common.close')}
-              </button>
-            </div>
           </Dialog.Panel>
         </div>
       </Dialog>
