@@ -11,6 +11,10 @@ const statusStyles = {
   litige: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200',
 };
 
+const tableClasses = "min-w-full divide-y divide-gray-200 bg-white text-gray-800";
+const headerClasses = "bg-white text-left text-xs font-medium text-gray-500 uppercase tracking-wider";
+const cellClasses = "whitespace-nowrap text-sm text-gray-800";
+
 export function RecentParcels() {
   const [currentPage, setCurrentPage] = useState(1);
   const { parcels, loading, error, hasMore } = useRecentParcels(currentPage);
@@ -86,57 +90,55 @@ export function RecentParcels() {
   }
 
   return (
-    <div>
-      <div className="mt-4 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    {columns.map((column) => (
-                      <th
-                        key={column.key}
-                        scope="col"
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-0"
-                      >
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white dark:bg-gray-900 dark:divide-gray-700">
-                  {parcels.map((parcel) => (
-                    <tr key={parcel.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
-                        {parcel.tracking_number}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {format(new Date(parcel.created_at), 'dd/MM/yyyy')}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {parcel.recipient_name || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {getCountryName(parcel.country)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {formatWeight(parcel.weight)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${statusStyles[parcel.status]}`}>
-                          {getStatusDisplay(parcel.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+    <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="px-4 py-5 sm:px-6">
+        <h3 className="text-lg font-medium leading-6 text-gray-900">
+          {t('dashboard.recentParcels')}
+        </h3>
       </div>
-
+      <div className="overflow-x-auto">
+        <table className={tableClasses}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  scope="col"
+                  className={`${headerClasses} px-6 py-3`}
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {parcels.map((parcel) => (
+              <tr key={parcel.id} className="hover:bg-gray-50">
+                <td className={`${cellClasses} px-6 py-4`}>
+                  {parcel.tracking_number}
+                </td>
+                <td className={`${cellClasses} px-6 py-4`}>
+                  {format(new Date(parcel.created_at), 'dd/MM/yyyy')}
+                </td>
+                <td className={`${cellClasses} px-6 py-4`}>
+                  {parcel.recipient_name || '-'}
+                </td>
+                <td className={`${cellClasses} px-6 py-4`}>
+                  {getCountryName(parcel.country)}
+                </td>
+                <td className={`${cellClasses} px-6 py-4`}>
+                  {formatWeight(parcel.weight)}
+                </td>
+                <td className={`${cellClasses} px-6 py-4`}>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[parcel.status]}`}>
+                    {getStatusDisplay(parcel.status)}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className="mt-4 flex items-center justify-between">
         <button
           onClick={() => handlePageChange(currentPage - 1)}
